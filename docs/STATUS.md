@@ -35,10 +35,9 @@ Zach confirmed !doom and the T/CT round score work. !doom is now local: no chat 
 HELP_SECONDS (8) on the typing player's own HUD (message line + bottom line in an arena, centre + bottom in the lobby).
 CS2 scripts can't send private chat or hide the "!doom" line itself. The CS2 chat box can't be moved or resized from
 a map (the CS2 health box can't be hidden either). Status bar (.SBarBox in tools/hud.py, panel id fdm_sbarbox):
-centred at 85% by default; `!hud` per player cycles centre -> right -> classic (full size) -> small (65%), or
-`!hud centre|right|classic|small`; listed in the !doom help. 09:42: !hud resizes but "right" didn't move: Panorama doesn't re-place a panel
-when only horizontal-align changes by class. Fix sent: .right also nudges width by 0.5px. If still not moving, plan B:
-full-width slider panel translated 50% (own width) plus the bar translated -612px (half its 85% width).
+centred at 85% by default; `!hud` per player cycles normal (85%) -> classic (100%) -> small (65%), or
+`!hud normal|classic|small`; listed in the !doom help. Moving it to a corner by class was dropped: Panorama doesn't
+re-place a panel when only horizontal-align changes (a width nudge didn't help either). Zach prefers size only.
 
 ## Open problems
 1. Scoreboard kills with a second human: check the `CS2 kill:` lines and whether the warmup warning appears.

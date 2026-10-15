@@ -95,12 +95,11 @@ for name in WFRAMES:
          background_image='url("%s")' % url, background_size='100% 100%', background_repeat='no-repeat')
 
 # status bar
-# status bar: centred at 85% by default; each player can pick another position with !hud
+# status bar: centred at 85% by default; each player can pick another size with !hud
+# (moving it by class doesn't work: Panorama won't re-place a panel when only its alignment changes)
 SBAR_SCALE = 0.85
 rule('.SBarBox', width=px(320, SX), height=px(34, SY), horizontal_align='center', vertical_align='bottom',
      transform_origin='50% 100%', transform='scale3d(%.2f, %.2f, 1)' % (SBAR_SCALE, SBAR_SCALE))
-# Panorama only re-places a panel when its size changes, so the class also nudges the width
-rule('.SBarBox.right', horizontal_align='right', transform_origin='100% 100%', width='%.1fpx' % (320 * SX + 0.5))
 rule('.SBarBox.classic', transform='scale3d(1, 1, 1)')
 rule('.SBarBox.small', transform='scale3d(0.65, 0.65, 1)')
 rule('.SBar', width=px(320, SX), height=px(32, SY), margin_top=px(2, SY))
