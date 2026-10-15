@@ -1,0 +1,110 @@
+"""Adds the environment to the user's current map: a moondome (sky shell) around every level with a toolsskybox shell
+one unit inside it, and visibility hints (Lowest over the whole map and the void, Low inside each level and the lobby).
+
+usage: vmap_env.py <current.vmap> <out.vmap> <addon_out_dir>
+
+Everything this writes is tagged with the vis group "fdm_env", so running it again replaces its own work and leaves
+the rest of the map (including anything placed by hand in Hammer) untouched.
+"""
+import os, sys, json
+sys.path.insert(0, os.path.dirname(__file__))
+import dmx
+from vmaplib import *
+import vmaplib
+
+SRC, OUTPATH, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+GROUP = 'fdm_env'
+MOONDOME = 'materials/fdm/sky/moondome.vmat'
+TOOLSSKY = 'materials/tools/toolsskybox.vmat'
+ZS = 1.2
+HINT_LOWEST, HINT_LOW = 9, 3
+
+levels = json.load(open(os.path.join(OUT, '_gen/levels.json')))
+
+d = dmx.DMX.load(SRC)
+world = d.root.get('world')
+vmaplib.init(d, OUT)
+
+# ---------------------------------------------------------------- moondome material (same panorama as env_sky)
+os.makedirs(os.path.join(OUT, 'materials/fdm/sky'), exist_ok=True)
+open(os.path.join(OUT, 'materials/fdm/sky/moondome.vmat'), 'w', newline='\n').write('''// FreeDM moondome: mesh material that shows the sky (same panorama as env_sky), unlit, no shadows, no fog
+Layer0
+{
+	shader "csgo_moondome.vfx"
+	F_DO_NOT_CAST_SHADOWS 1
+	g_vColorTint "[1.000000 1.000000 1.000000 0.000000]"
+	TextureColor "materials/fdm/sky/moondome_color.png"
+	g_flCubeParallax "0.000"
+	g_bFogEnabled "0"
+	TextureCubeMap "materials/fdm/sky/sky_color.png"
+}
+''')
+Image.new('RGB', (16, 16), (255, 255, 255)).save(os.path.join(OUT, 'materials/fdm/sky/moondome_color.png'))
+
+# ---------------------------------------------------------------- boxes
+def level_box(L):
+    ox, oy, oz = L['off']
+    x0, y0, x1, y1 = L['bb']
+    fl = min(s[0] for s in L['s']); ce = max(s[1] for s in L['s'])
+    return (x0 + ox - 512, y0 + oy - 512, fl * ZS + oz - 256, x1 + ox + 512, y1 + oy + 512, ce * ZS + oz + 768)
+
+boxes = [level_box(L) for L in levels]
+LZ = -12000
+lobby = [(-1536 / 2 - 64, -1536 / 2 - 64, LZ - 64, 1536 / 2 + 64, 1536 / 2 + 64, LZ + 384 + 64),
+         (-400 - 64, 2600 - 400 - 64, LZ - 64, 400 + 64, 2600 + 400 + 64, LZ + 256 + 64),
+         (-1024 - 64, 4200 - 512 - 64, LZ - 64, 1024 + 64, 4200 + 512 + 64, LZ + 256 + 64)]
+
+# every box must stay clear of its neighbours (moondomes must not overlap)
+for i, a in enumerate(boxes):
+    for b in boxes[i + 1:]:
+        assert a[3] <= b[0] or b[3] <= a[0] or a[4] <= b[1] or b[4] <= a[1] or a[5] <= b[2] or b[5] <= a[2], (a, b)
+
+def shell(box, mat, inset):
+    x0, y0, z0, x1, y1, z1 = box
+    v, faces = box_faces(x0 + inset, y0 + inset, z0 + inset, x1 - inset, y1 - inset, z1 - inset)
+    mesh_node(polymesh(v, faces, [mat] * 6, scale=1.0), GROUP)
+
+def hint(box, kind):
+    x0, y0, z0, x1, y1, z1 = box
+    c = ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); h = ((x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2)
+    ent('visibility_hint', c, group=GROUP, hintType=str(kind),
+        box_mins='%g %g %g' % (-h[0], -h[1], -h[2]), box_maxs='%g %g %g' % (h[0], h[1], h[2]))
+
+for box in boxes:
+    shell(box, MOONDOME, 0)
+    shell(box, TOOLSSKY, 1)
+    hint(box, HINT_LOW)
+for box in lobby:
+    hint(box, HINT_LOW)
+allb = boxes + lobby
+whole = (min(b[0] for b in allb) - 256, min(b[1] for b in allb) - 256, min(b[2] for b in allb) - 256,
+         max(b[3] for b in allb) + 256, max(b[4] for b in allb) + 256, max(b[5] for b in allb) + 256)
+hint(whole, HINT_LOWEST)
+
+# nav generation needs a walkable seed: a func_nav_markup volume just above the lobby floor (bots can't be added otherwise)
+seed = ent('func_nav_markup', (0, 0, 0), group=GROUP, navProperty_NavGen='WALKABLESEED', flags='1')
+v, faces = box_faces(-704, -704, LZ + 1, 704, 704, LZ + 40, inward=False)
+seed.attr('children')[2].append(mesh_node(polymesh(v, faces, ['materials/tools/toolsnavattribute.vmat'] * 6, scale=1.0), GROUP, attach=False))
+
+# ---------------------------------------------------------------- replace our previous environment, keep everything else
+kids = world.attr('children')
+kept = [c for c in kids[2] if c.get('customVisGroup', '') != GROUP]
+removed = len(kids[2]) - len(kept)
+kids[2] = kept + vmaplib.new_children
+
+pre = {a[0]: a for a in d.prefix[0]}
+refs = pre['map_asset_references'][2]
+for m in (MOONDOME, TOOLSSKY, 'materials/tools/toolsnavattribute.vmat'):
+    if m not in refs: refs.append(m)
+names = pre['map_subasset_reference_names'][2]; cnts = pre['map_subasset_reference_counts'][2]
+for cls in ('visibility_hint', 'func_nav_markup'):
+    k = vmaplib.counts[cls]
+    if cls in names: cnts[names.index(cls)] = k
+    else:
+        pre['map_subasset_reference_types'][2].append('entity'); names.append(cls); cnts.append(k)
+n = vmaplib.counts['visibility_hint']
+
+d.elements = [d.root]
+d.save(OUTPATH)
+print('env: %d moondomes, %d hints (%d low, 1 lowest), replaced %d old nodes, map %s..%s -> %s' % (
+    len(boxes), n, n - 1, removed, tuple(int(x) for x in whole[:3]), tuple(int(x) for x in whole[3:]), OUTPATH))
