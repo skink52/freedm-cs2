@@ -100,6 +100,9 @@ for name in WFRAMES:
 SBAR_SCALE = 0.85
 rule('.SBarBox', width=px(320, SX), height=px(34, SY), horizontal_align='right', vertical_align='bottom',
      transform_origin='100% 100%', transform='scale3d(%.2f, %.2f, 1)' % (SBAR_SCALE, SBAR_SCALE))
+# !hud per player: "classic" = full size, centred like Doom; "small" = 65% in the corner
+rule('.SBarBox.classic', horizontal_align='center', transform='scale3d(1, 1, 1)')
+rule('.SBarBox.small', transform='scale3d(0.65, 0.65, 1)')
 rule('.SBar', width=px(320, SX), height=px(32, SY), margin_top=px(2, SY))
 stbar = img_rule('.SBarBg', 'STBAR', 0, 0)
 sbar_children = [P(None, 'SBarBg')]
@@ -213,7 +216,7 @@ for k in range(7):
 xh_url = save('xhair', xh)
 rule('.XHair', width=px(7, SX), height=px(7, SY), horizontal_align='center', vertical_align='center',
      background_image='url("%s")' % xh_url, background_size='100% 100%', background_repeat='no-repeat', opacity='0.8')
-sbarbox = P(None, 'SBarBox', [P('fdm_team', 'Team'), P('fdm_sbar', 'SBar', sbar_children)])
+sbarbox = P('fdm_sbarbox', 'SBarBox', [P('fdm_team', 'Team'), P('fdm_sbar', 'SBar', sbar_children)])
 root = P('fdm_root', 'FdmRoot', [P('fdm_flash', 'Flash'), screen, sbarbox])
 # the root panel may not carry an id (CustomHud validation), so fdm_root sits inside a plain full-screen panel
 doc = ('<root>\n\t<styles>\n\t\t<include src="file://{resources}/styles/custom_game/freedm.css" />\n\t</styles>\n'

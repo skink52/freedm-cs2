@@ -154,8 +154,10 @@ hooks.OnActivate();
 let rounds = 0;
 const t0 = Date.now();
 let thinkMs = 0, maxThink = 0;
+const CHATS = { 20: "!hud", 30: "!doom", 40: "!hud small", 50: "!hud" };
 while (time < SECONDS) {
   time += TICK;
+  for (const [at, text] of Object.entries(CHATS)) if (Math.abs(time - +at) < TICK / 2 && players[0] && hooks.OnPlayerChat) hooks.OnPlayerChat({ player: players[0], text, team: 0 });
   // fake human input: move, strafe, turn, shoot, switch weapons
   for (const c of players) {
     const p = c.pawn;
@@ -204,4 +206,5 @@ console.log('says:', stats.says.slice(0, 8).join('\n      '));
 console.log('scores', players.map((c) => c.score).join(','));
 if (stats.errors.length) { console.log('ERRORS/WARNINGS:'); for (const e of [...new Set(stats.errors)].slice(0, 20)) console.log('  ' + e); }
 console.log("hud by panel", JSON.stringify(Object.entries(stats.hudBy || {}).sort((a,b)=>b[1]-a[1]).slice(0,14)));
+console.log("status bar swaps", (stats.hudBy || {}).fdm_sbarbox || 0);
 console.log('log:', stats.msgs.slice(0, 5).join(' | '));

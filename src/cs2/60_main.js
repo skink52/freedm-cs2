@@ -263,8 +263,8 @@ function infoFor(pe, now) {
     const t = a.players.get(pe.spec.target);
     spec = t ? "SPECTATING " + t.name.slice(0, 20) : "SPECTATING";
   } else if (pe.player && pe.player.playerstate === "dead" && a.mode.respawn) spec = "RESPAWNING...";
-  if (!spec && pe.helpUntil > now) spec = "CHAT: !SPEC  !AFK  !BACK";
-  return { line1, line2, center, spec };
+  if (!spec && pe.helpUntil > now) spec = "CHAT: !SPEC  !AFK  !BACK  !HUD";
+  return { line1, line2, center, spec, sbar: pe.hudPos };
 }
 
 let lobbyNext = 0, lobbyCycle = 0, lobbyWaiting = 0;   // lobbyCycle: which arena the lobby status shows (changes every 3 s)
@@ -301,7 +301,7 @@ function lobbyInfo(pe, now) {
     if (pe.afk) info.spec = "AFK - TYPE !BACK TO PLAY";
     else if (pe.csTeam !== 2 && pe.csTeam !== 3) info.spec = "JOIN T OR CT TO PLAY";
   }
-  if (pe.helpUntil > now) { info.center = "R NEXT  F PREV  E USE"; info.spec = "SHIFT WALK - !SPEC !AFK !BACK"; }
+  if (pe.helpUntil > now) { info.center = "R NEXT  F PREV  E USE"; info.spec = "SHIFT WALK !SPEC !AFK !BACK !HUD"; }
   return info;
 }
 
@@ -479,6 +479,14 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
     if (pe) { pe.afk = true; if (pe.status === "playing") { const a = pe.arena; rm.leaveArena(pe, "afk"); rm.spectate(pe, a); } }
   } else if (t === "!back") {
     if (pe) { pe.afk = false; rm.markActive(slot); if (pe.status === "spectating" && phase === "running") { pe.status = "none"; rm.lateJoin(pe); } }
+  } else if (t === "!hud" || t.startsWith("!hud ")) {
+    // status bar position for this player: right (default) -> classic -> small
+    const order = ["right", "classic", "small"];
+    const want = t.slice(5).trim();
+    if (pe) {
+      pe.hudPos = order.includes(want) ? want : order[(order.indexOf(pe.hudPos || "right") + 1) % order.length];
+      if (pe.player) { pe.player.message = "STATUS BAR: " + pe.hudPos.toUpperCase() + "  (!HUD TO CHANGE)"; pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
+    }
   } else if (t === "!doom" || t === "!fdm") {
     // shown only on the HUD of whoever typed it (CS2 scripts can't send a private chat line)
     if (pe) pe.helpUntil = Instance.GetGameTime() + CONFIG.HELP_SECONDS;

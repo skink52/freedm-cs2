@@ -36,6 +36,8 @@ HELP_SECONDS (8) on the typing player's own HUD (message line + bottom line in a
 CS2 scripts can't send private chat or hide the "!doom" line itself. The CS2 chat box can't be moved or resized from
 a map. Done 09:40: status bar moved to the bottom-right corner of the whole screen at 85% size (SBAR_SCALE in
 tools/hud.py, .SBarBox) so the CS2 chat fits beside it on 16:9. freedm.xml + freedm.css written to the addon.
+`!hud` (per player, cycles right -> classic -> small, or `!hud classic|right|small`) switches the status bar;
+listed in the !doom help. Panel id fdm_sbarbox, classes classic / small.
 
 ## Open problems
 1. Scoreboard kills with a second human: check the `CS2 kill:` lines and whether the warmup warning appears.
