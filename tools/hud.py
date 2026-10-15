@@ -95,13 +95,12 @@ for name in WFRAMES:
          background_image='url("%s")' % url, background_size='100% 100%', background_repeat='no-repeat')
 
 # status bar
-# the status bar sits in the bottom-right corner of the whole screen, shrunk a little, so the CS2 chat
-# (bottom left) fits beside it on widescreen
+# status bar: centred at 85% by default; each player can pick another position with !hud
 SBAR_SCALE = 0.85
-rule('.SBarBox', width=px(320, SX), height=px(34, SY), horizontal_align='right', vertical_align='bottom',
-     transform_origin='100% 100%', transform='scale3d(%.2f, %.2f, 1)' % (SBAR_SCALE, SBAR_SCALE))
-# !hud per player: "classic" = full size, centred like Doom; "small" = 65% in the corner
-rule('.SBarBox.classic', horizontal_align='center', transform='scale3d(1, 1, 1)')
+rule('.SBarBox', width=px(320, SX), height=px(34, SY), horizontal_align='center', vertical_align='bottom',
+     transform_origin='50% 100%', transform='scale3d(%.2f, %.2f, 1)' % (SBAR_SCALE, SBAR_SCALE))
+rule('.SBarBox.right', horizontal_align='right', transform_origin='100% 100%')
+rule('.SBarBox.classic', transform='scale3d(1, 1, 1)')
 rule('.SBarBox.small', transform='scale3d(0.65, 0.65, 1)')
 rule('.SBar', width=px(320, SX), height=px(32, SY), margin_top=px(2, SY))
 stbar = img_rule('.SBarBg', 'STBAR', 0, 0)

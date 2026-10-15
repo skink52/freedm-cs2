@@ -125,7 +125,7 @@ function weaponClass(psp) {
 
 function hudPlayer(slot, p, arena, info) {
   hudSwap(slot, "fdm_root", "On");
-  hudSwap(slot, "fdm_sbarbox", info && info.sbar && info.sbar !== "right" ? info.sbar : null);
+  hudSwap(slot, "fdm_sbarbox", info && info.sbar && info.sbar !== "centre" ? info.sbar : null);
   // weapon sprite + flash
   const wp = p.psprites[0], fp = p.psprites[1];
   const alive = p.playerstate === "live";

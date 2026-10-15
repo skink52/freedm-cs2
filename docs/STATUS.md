@@ -34,10 +34,10 @@ Changes:
 Zach confirmed !doom and the T/CT round score work. !doom is now local: no chat broadcast, the controls show for
 HELP_SECONDS (8) on the typing player's own HUD (message line + bottom line in an arena, centre + bottom in the lobby).
 CS2 scripts can't send private chat or hide the "!doom" line itself. The CS2 chat box can't be moved or resized from
-a map. Done 09:40: status bar moved to the bottom-right corner of the whole screen at 85% size (SBAR_SCALE in
-tools/hud.py, .SBarBox) so the CS2 chat fits beside it on 16:9. freedm.xml + freedm.css written to the addon.
-`!hud` (per player, cycles right -> classic -> small, or `!hud classic|right|small`) switches the status bar;
-listed in the !doom help. Panel id fdm_sbarbox, classes classic / small.
+a map (the CS2 health box can't be hidden either). Status bar (.SBarBox in tools/hud.py, panel id fdm_sbarbox):
+centred at 85% by default; `!hud` per player cycles centre -> right -> classic (full size) -> small (65%), or
+`!hud centre|right|classic|small`; listed in the !doom help. 09:37 test of !hud did nothing - most likely the game
+was loaded before the 09:34 files arrived; recheck after a reload (the message line confirms the switch).
 
 ## Open problems
 1. Scoreboard kills with a second human: check the `CS2 kill:` lines and whether the warmup warning appears.

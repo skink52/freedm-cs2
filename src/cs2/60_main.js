@@ -480,11 +480,12 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
   } else if (t === "!back") {
     if (pe) { pe.afk = false; rm.markActive(slot); if (pe.status === "spectating" && phase === "running") { pe.status = "none"; rm.lateJoin(pe); } }
   } else if (t === "!hud" || t.startsWith("!hud ")) {
-    // status bar position for this player: right (default) -> classic -> small
-    const order = ["right", "classic", "small"];
-    const want = t.slice(5).trim();
+    // status bar position for this player: centre (default) -> right -> classic (full size) -> small
+    const order = ["centre", "right", "classic", "small"];
+    const alias = { center: "centre", middle: "centre", full: "classic", big: "classic" };
+    const want = alias[t.slice(5).trim()] || t.slice(5).trim();
     if (pe) {
-      pe.hudPos = order.includes(want) ? want : order[(order.indexOf(pe.hudPos || "right") + 1) % order.length];
+      pe.hudPos = order.includes(want) ? want : order[(order.indexOf(pe.hudPos || "centre") + 1) % order.length];
       if (pe.player) { pe.player.message = "STATUS BAR: " + pe.hudPos.toUpperCase() + "  (!HUD TO CHANGE)"; pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
     }
   } else if (t === "!doom" || t === "!fdm") {
