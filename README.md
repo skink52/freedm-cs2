@@ -8,6 +8,10 @@ standing). Every frag is a real CS2 kill.
 
 Workshop: *(link to the Steam Workshop page)*
 
+> **About the code:** the code in this repository (the converter, game logic and build tools) was written by an
+> AI coding agent (Claude, by Anthropic). skink52 directed the project, tested it in CS2, did the Hammer work and
+> publishes the map, but is not the author of the code. Please keep that in mind when reading or reusing it.
+
 This repository is the **source**: the converter that turns Freedoom's files into CS2 models,
 materials, sounds and HUD graphics, the game logic, and the tools that write everything into the
 Hammer map. The built addon is what the Workshop item contains.

@@ -81,4 +81,6 @@ When `APPLY_CVARS` is on, the map sets these:
 
 ## Credits
 
+The code (the cs_script and the build tools) was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52.
+
 All game content is from Freedoom (freedoom.github.io, BSD-licensed): FreeDM levels, textures, sprites, sounds and graphics. The game code is a fresh implementation of Doom's rules in cs_script.
