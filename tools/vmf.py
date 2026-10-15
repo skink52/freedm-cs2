@@ -60,6 +60,7 @@ for i in range(32):
     ent('info_player_counterterrorist', (x, y + 900, LZ + 8), angles='0 270 0', enabled='1')
 ent('light_omni2', (0, 0, LZ + 300), color='255 255 255', brightness='3', range='2000', castshadows='0', directlight='2')
 ent('info_target', (0, 2600, LZ), targetname='fdm_booth')
+ent('info_map_parameters', (-32, 0, LZ + 64), targetname='fdm_map_params', buying='3', usenormalspawnsfordm='1')
 ent('point_script', (0, 0, LZ + 64), targetname='fdm_script', cs_script='scripts/freedm.vjs')
 ent('custom_hud_layout', (32, 0, LZ + 64), targetname='fdm_hud', layoutfile='panorama/layout/custom_game/freedm.vxml')
 ent('env_sky', (64, 0, LZ + 64), targetname='fdm_sky', skyname='materials/fdm/sky/sky.vmat', tint_color='255 255 255', brightnessscale='1.0', StartDisabled='0')

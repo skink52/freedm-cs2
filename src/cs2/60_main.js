@@ -78,7 +78,7 @@ function startDoomRound() {
   cvars(["mp_ignore_round_win_conditions 1"]);
   cvars(respawn ? CONFIG.RESPAWN_CVARS_ON : CONFIG.RESPAWN_CVARS_OFF);
   cvars([MODES[rm.modeKey].teams ? "mp_teammates_are_enemies 0" : "mp_teammates_are_enemies 1"]);
-  guard("roundtime", () => Instance.SetRoundRemainingTime(CONFIG.ROUND_SECONDS));
+  guard("roundtime", () => Instance.SetRoundRemainingTime(CONFIG.ROUND_SECONDS + CONFIG.ROUND_SLACK));
   pendingKills.length = 0; elimKills.length = 0;
   for (const a of rm.arenas) {
     views.set(a, new ArenaView(a));
@@ -101,7 +101,21 @@ function endDoomRound() {
   const lines = rm.arenas.map((a) => `${a.mapTitle}: ${a.result ? a.result.text : "-"}`);
   sayAll("DOOM round over - " + lines.join(" | "));
   cvars(["mp_ignore_round_win_conditions 0"]);
-  guard("endround", () => Instance.SetRoundRemainingTime(1));
+  // the CS2 round winner: the side that won more arenas (a free-for-all arena goes to its winner's side)
+  const wins = { 2: 0, 3: 0 };
+  for (const a of rm.arenas) {
+    const r = a.result;
+    if (!r) continue;
+    if (r.team !== undefined) { if (r.team === 0) wins[2]++; else if (r.team === 1) wins[3]++; }
+    else if (r.player && r.player.person && wins[r.player.person.csTeam] !== undefined) wins[r.player.person.csTeam]++;
+  }
+  const reason = wins[2] > wins[3] ? CSRoundEndReason.TERRORISTS_WIN : wins[3] > wins[2] ? CSRoundEndReason.CTS_WIN : CSRoundEndReason.DRAW;
+  if (live(Instance.FindEntityByName(CONFIG.MAP_PARAMS))) {
+    guard("wincond", () => Instance.EntFireAtName({ name: CONFIG.MAP_PARAMS, input: "FireWinCondition", value: reason }));
+  } else {
+    warnOnce("nomapparams", "no " + CONFIG.MAP_PARAMS + " entity: rounds end on the clock as draws");
+    guard("endround", () => Instance.SetRoundRemainingTime(1));
+  }
 }
 
 function cleanupRound(entitiesGone) {
@@ -295,7 +309,7 @@ function frame(dt) {
   const remaining = guard("remaining", () => Instance.GetRoundRemainingTime());
   while (acc >= 1 / TICRATE && ran < 4) {
     acc -= 1 / TICRATE; ran++;
-    rm.tic(remaining);
+    rm.tic(remaining === undefined ? undefined : remaining - CONFIG.ROUND_SLACK);
     for (const a of rm.arenas) handleArenaEvents(a);
     handleRoundEvents();
     if (phase !== "running") return;
@@ -404,6 +418,7 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
   } else if (t === "!body move" || t === "!body snap" || t === "!body off") {
     setOwnBody(t.slice(6)); sayAll("own body mode: " + t.slice(6));
   } else if (t === "!doom" || t === "!fdm") {
-    sayAll(`FreeDM v${VERSION}: R / right click = next weapon, F = previous, E or SPACE = use, SHIFT = walk. !spec !afk !back`);
+    sayAll(`FreeDM ${VERSION}. Next weapon: R or right click. Previous: F. Use: E or SPACE. Walk: SHIFT.`);
+    sayAll("Chat: !spec watch other arenas, !afk sit out, !back rejoin.");
   }
 }));

@@ -12,6 +12,7 @@ const OPTS = process.argv[5] || '';
 const CSInputs = { NONE: 0, FORWARD: 1, BACK: 2, LEFT: 4, RIGHT: 8, WALK: 16, DUCK: 32, JUMP: 64, USE: 128, ATTACK: 256, ATTACK2: 512, RELOAD: 1024, SHOW_SCORES: 2048, LOOK_AT_WEAPON: 4096 };
 for (const [k, v] of Object.entries({ ...CSInputs })) CSInputs[v] = k;
 const CustomCameraMode = { DISABLED: 0, CONTROLLED: 1, CONTROLLED_POSITION: 2, FOLLOW_POSITION: 3 };
+const CSRoundEndReason = { UNKNOWN: -1, IN_PROGRESS: 0, GAME_COMMENCING: 1, DRAW: 2, CTS_WIN: 8, TERRORISTS_WIN: 9 };
 const CSMoveType = { INVALID: -1, NONE: 0, WALK: 1, FLYGRAVITY: 2, VPHYSICS: 3, NOCLIP: 4, OBSERVER: 5, LADDER: 6, CUSTOM: 7 };
 const CSDamageTypes = { GENERIC: 0, BULLET: 2, BLAST: 64 };
 const CSDamageFlags = { NONE: 0, PREVENT_DEATH: 8, FORCE_DEATH: 16, IGNORE_ARMOR: 64 };
@@ -110,7 +111,7 @@ const hooks = {};
 let thinkFn = null, nextThink = 0;
 const timers = [];
 function later(dt, fn) { timers.push({ at: time + dt, fn }); }
-let freezeUntil = 2, roundEnd = 600, roundEnded = false, warmup = false;
+let freezeUntil = 2, roundEnd = 600, roundEnded = false, warmup = false, winFired = null; const winReasons = {};
 const Instance = {
   Msg: (m) => { const s = String(m); stats.msgs.push(s); if (/error|WARNING/.test(s)) stats.errors.push(s); if (OPTS.includes('v')) console.log(s); },
   GetGameTime: () => time,
@@ -134,16 +135,16 @@ const Instance = {
     else if (input === 'SetSourceEntity') { if (![...spawnedEnts].some((e) => e.name === value)) throw new Error('unknown sound source ' + value); }
     else throw new Error('unexpected input ' + input);
   },
-  EntFireAtName: () => {},
+  EntFireAtName: ({ name, input, value }) => { if (input === 'FireWinCondition') { winFired = value; roundEnd = time; } },
   IsFreezePeriod: () => time < freezeUntil,
   IsWarmupPeriod: () => warmup,
   GetRoundRemainingTime: () => roundEnd - time,
   SetRoundRemainingTime: (t) => { roundEnd = time + t; },
 };
-const api = { Instance, CSInputs, CustomCameraMode, CSMoveType, CSDamageTypes, CSDamageFlags, CSPlayerPawn: Pawn, CSPlayerController: Controller, BaseModelEntity: Entity, PointTemplate, CustomHudLayout, Entity };
+const api = { Instance, CSInputs, CustomCameraMode, CSMoveType, CSRoundEndReason, CSDamageTypes, CSDamageFlags, CSPlayerPawn: Pawn, CSPlayerController: Controller, BaseModelEntity: Entity, PointTemplate, CustomHudLayout, Entity };
 
 let src = fs.readFileSync(path.join(root, 'out/addon/maps/scripts/freedm.js'), 'utf8');
-src = src.replace(/^import \{[^}]+\} from "cs_script\/point_script";/m, 'const { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, Entity } = __api;');
+src = src.replace(/^import \{[^}]+\} from "cs_script\/point_script";/m, 'const { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, CSRoundEndReason, Entity } = __api;');
 const ctx = vm.createContext({ __api: api, console, Math, Date, JSON, Map, Set, Array, Object, String, Number, Error, Infinity, NaN });
 vm.runInContext(src, ctx, { filename: 'freedm.js' });
 
@@ -173,9 +174,9 @@ while (time < SECONDS) {
   }
   for (let i = timers.length - 1; i >= 0; i--) if (timers[i].at <= time) { const t = timers.splice(i, 1)[0]; t.fn(); }
   // round timer
-  if (!roundEnded && time >= roundEnd && cvar('mp_ignore_round_win_conditions') !== '1') {
-    roundEnded = true; rounds++;
-    hooks.OnRoundEnd && hooks.OnRoundEnd({ winningTeam: 3, reason: 0 });
+  if (!roundEnded && time >= roundEnd && (winFired !== null || cvar('mp_ignore_round_win_conditions') !== '1')) {
+    roundEnded = true; rounds++; winReasons[winFired] = (winReasons[winFired] || 0) + 1;
+    hooks.OnRoundEnd && hooks.OnRoundEnd({ winningTeam: winFired === 9 ? 2 : winFired === 8 ? 3 : 0, reason: winFired === null ? 0 : winFired }); winFired = null;
     later(3, () => {
       hooks.OnBeginRoundRestart && hooks.OnBeginRoundRestart();
       for (const e of spawnedEnts) e.valid = false;
@@ -193,6 +194,7 @@ while (time < SECONDS) {
   if (OPTS.includes('disc') && Math.abs(time - 60) < TICK / 2) { const c = players[3]; c.connected = false; hooks.OnPlayerDisconnect({ playerSlot: c.slot }); }
 }
 const cams = players.filter((c) => c.pawn && c.pawn.cam).map((c) => c.pawn.cam.mode);
+console.log('round end reasons', JSON.stringify(winReasons));
 console.log(`simulated ${SECONDS}s with ${HUMANS} humans + ${BOTS} bots: ${rounds} CS2 rounds ended`);
 console.log(`props spawned ${stats.spawned}, moves ${stats.moves}, teleports ${stats.teleports}, setModel ${stats.setModel}, skins ${stats.skins}, hud calls ${stats.hudCalls}, sounds ${stats.sounds}`);
 console.log(`CS2 kills ${stats.kills} (scripted ${stats.scriptKills}), camera modes ${JSON.stringify(cams)}`);

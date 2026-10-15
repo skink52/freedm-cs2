@@ -62,6 +62,8 @@ const CONFIG = {
   PROP_TEMPLATE: "fdm_tpl_prop",
   BOOTH: "fdm_booth",
   SOUND_PREFIX: "fdm_snd_",
+  MAP_PARAMS: "fdm_map_params",  // info_map_parameters: its FireWinCondition input ends the CS2 round with a winner
+  ROUND_SLACK: 15,               // CS2 round clock runs this much longer than the Doom clock, so the script ends the round
 
   DEBUG: false,
 };

@@ -11,7 +11,7 @@ fs.writeFileSync(path.join(root, 'build/core_test.cjs'), testMod);
 const adapterDir = path.join(root, 'src/cs2');
 if (fs.existsSync(adapterDir) && fs.existsSync(path.join(root, 'out/addon/_gen/sprite_models.json')) && fs.existsSync(path.join(root, 'build/hud_strings.json'))) {
   const adapter = fs.readdirSync(adapterDir).filter((f) => f.endsWith('.js')).sort().map((f) => `// ---- ${f}\n` + fs.readFileSync(path.join(adapterDir, f), 'utf8')).join('\n');
-  const head = `import { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, Entity } from "cs_script/point_script";\n`;
+  const head = `import { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, CSRoundEndReason, Entity } from "cs_script/point_script";\n`;
   const sprites = fs.readFileSync(path.join(root, 'out/addon/_gen/sprite_models.json'), 'utf8');
   const strings = fs.readFileSync(path.join(root, 'build/hud_strings.json'), 'utf8');
   const out = head + core + `\nconst LEVELS = ${levels};\nconst SPRITE_MODELS = ${sprites};\nconst HUD_STRING_INDEX = new Map(${strings}.map((s, i) => [s, i]));\n` + adapter;
