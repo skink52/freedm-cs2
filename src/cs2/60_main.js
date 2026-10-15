@@ -111,6 +111,7 @@ function endDoomRound() {
   }
   const reason = wins[2] > wins[3] ? CSRoundEndReason.TERRORISTS_WIN : wins[3] > wins[2] ? CSRoundEndReason.CTS_WIN : CSRoundEndReason.DRAW;
   if (live(Instance.FindEntityByName(CONFIG.MAP_PARAMS))) {
+    log(`FireWinCondition ${reason} (arenas won: T ${wins[2]}, CT ${wins[3]})`);
     guard("wincond", () => Instance.EntFireAtName({ name: CONFIG.MAP_PARAMS, input: "FireWinCondition", value: reason }));
   } else {
     warnOnce("nomapparams", "no " + CONFIG.MAP_PARAMS + " entity: rounds end on the clock as draws");
@@ -145,6 +146,8 @@ function csKill(victimSlot, killerSlot) {
   }));
   allowDamage.delete(victimSlot);
   const died = !live(vp) || !vp.IsAlive();
+  const vc = controllerOf(victimSlot), kc = killerSlot !== victimSlot ? controllerOf(killerSlot) : undefined;
+  if ((vc && !vc.IsBot()) || (kc && !kc.IsBot())) guard("killlog", () => log(`CS2 kill: ${kc ? kc.GetPlayerName() + " (team " + kc.GetTeamNumber() + ", score " + kc.GetScore() + ")" : "self/world"} -> ${vc ? vc.GetPlayerName() + " (team " + vc.GetTeamNumber() + ")" : victimSlot}${died ? "" : " BLOCKED"}`));
   if (!died) warnOnce("killblocked", "a scripted CS2 kill was blocked (plugin or damage settings?) - frags still count in Doom");
   return died;
 }
@@ -153,6 +156,7 @@ function onDoomKill(arena, e) {
   const v = e.victim, k = e.killer;
   // obituary on the message line of the two players involved (the CS2 killfeed shows everyone)
   for (const p of [v, k]) if (p) { p.message = e.text; p.messageTime = arena.leveltime; }
+  if (CONFIG.REAL_KILLS && Instance.IsWarmupPeriod()) warnOnce("warmupkills", "warmup: Doom frags are not sent to the CS2 scoreboard until warmup ends");
   if (!CONFIG.REAL_KILLS || realKillsBroken || Instance.IsWarmupPeriod()) {
     if (CONFIG.ADD_SCORE) {
       const c = controllerOf(k ? k.slot : v.slot);
@@ -230,7 +234,7 @@ function infoFor(pe, now) {
   if (!a) return { line1: "", line2: "", center: "", spec: "" };
   const mode = MODES[a.modeKey];
   let line1 = mode.name;
-  if (a.target) line1 += " - " + (a.teamsActive ? "TEAM " : "") + "FIRST TO " + a.target;
+  if (a.target) line1 += " - FIRST TO " + a.target;
   else if (!mode.respawn && rm.cfg.elimTimeLimitTics) {
     const left = Math.max(0, Math.ceil((rm.cfg.elimTimeLimitTics - a.time) / TICRATE));
     line1 += " " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
@@ -262,6 +266,56 @@ function infoFor(pe, now) {
   return { line1, line2, center, spec };
 }
 
+let lobbyNext = 0, lobbyCycle = 0, lobbyWaiting = 0;   // lobbyCycle: which arena the lobby status shows (changes every 3 s)
+function lobbyInfo(pe, now) {
+  const info = { line1: "", line2: "", center: "", spec: "" };
+  if (phase === "running") {
+    const rem = guard("remaining", () => Instance.GetRoundRemainingTime());
+    const left = rem === undefined ? 0 : Math.max(0, Math.ceil(rem - CONFIG.ROUND_SLACK));
+    info.line1 = `DOOM ROUND ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} LEFT`;
+    const open = rm.arenas.filter((a) => !a.finished);
+    const a = rm.arenas[lobbyCycle % Math.max(1, rm.arenas.length)];
+    if (a) {
+      let s;
+      if (a.finished) s = a.result ? a.result.text : "FINISHED";
+      else if (a.teamsActive && a.modeKey !== "elim") s = `RED ${a.teamScore[0]} BLUE ${a.teamScore[1]}`;
+      else s = `${Array.from(a.players.values()).filter((p) => !p.spectating).length} PLAYING`;
+      info.line2 = `${a.mapTitle}: ${s}`.slice(0, 32);
+    }
+    if (pe.afk) info.spec = "AFK - TYPE !BACK TO PLAY";
+    else if (pe.csTeam !== 2 && pe.csTeam !== 3) info.spec = "JOIN T OR CT TO PLAY";
+    else info.spec = open.some((x) => x.mode.respawn) ? "JOINING..." : "YOU PLAY NEXT ROUND";
+  } else if (phase === "ending") {
+    info.line1 = "DOOM ROUND OVER";
+    info.center = "NEXT ROUND SOON";
+  } else {
+    const need = CONFIG.MIN_PLAYERS - lobbyWaiting;
+    if (need > 0) {
+      info.line1 = `WAITING FOR PLAYERS ${lobbyWaiting}/${CONFIG.MIN_PLAYERS}`;
+      info.line2 = `NEED ${need} MORE ON T OR CT`;
+    } else {
+      const t = Math.max(0, Math.ceil(startAt - now));
+      info.line1 = Instance.IsFreezePeriod() ? "DOOM STARTS AFTER FREEZE TIME" : t > 0 ? `DOOM STARTS IN ${t}` : "DOOM STARTING...";
+    }
+    if (pe.afk) info.spec = "AFK - TYPE !BACK TO PLAY";
+    else if (pe.csTeam !== 2 && pe.csTeam !== 3) info.spec = "JOIN T OR CT TO PLAY";
+  }
+  return info;
+}
+
+function lobbyHud(now) {
+  if (now < lobbyNext) return;
+  lobbyNext = now + 0.25;
+  lobbyCycle = Math.floor(now / 3);
+  lobbyWaiting = 0;
+  for (const pe of rm.people.values()) if ((pe.csTeam === 2 || pe.csTeam === 3) && !(pe.afk && !pe.bot)) lobbyWaiting++;
+  for (const pe of rm.people.values()) {
+    if (pe.bot || parked.has(pe.slot)) continue;
+    if (phase === "running" && pe.status !== "none") continue;
+    guard("lobbyhud", () => hudLobby(pe.slot, lobbyInfo(pe, now)));
+  }
+}
+
 function spectatorInput(pe, pk) {
   const pawn = pk.pawn;
   if (!live(pawn)) return;
@@ -283,6 +337,7 @@ function frame(dt) {
   soundsThisTick = 0;
   spawnBudget = 40;
   scanPeople(false);
+  lobbyHud(now);
   if (phase === "lobby") {
     if (now >= startAt && !Instance.IsFreezePeriod()) startDoomRound();
     return;
@@ -361,7 +416,11 @@ Instance.OnRoundStart(() => guard("roundstart", () => {
   startAt = Instance.GetGameTime() + 0.5;
   cvars(["mp_ignore_round_win_conditions 1"]);
 }));
-Instance.OnRoundEnd(() => guard("roundend", () => { if (phase === "running") endDoomRound(); }));
+Instance.OnRoundEnd((ev) => guard("roundend", () => {
+  if (phase === "running") endDoomRound();
+  const w = ev && ev.winningTeam;
+  log(`CS2 round ended: ${w === 2 ? "T win" : w === 3 ? "CT win" : "no winner (team " + w + ")"}, reason ${ev ? ev.reason : "?"}`);
+}));
 Instance.OnBeginRoundRestart(() => guard("restart", () => cleanupRound(true)));
 Instance.OnPlayerDisconnect(({ playerSlot }) => guard("disconnect", () => dropPerson(playerSlot)));
 Instance.OnPlayerActivate(({ player }) => guard("activate", () => scanPeople(true)));
@@ -410,16 +469,16 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
   const slot = player.GetPlayerSlot();
   const pe = rm.person(slot);
   const t = text.trim().toLowerCase();
-  if (t.startsWith("!")) Instance.Msg(`[freedm] chat command "${t}" from slot ${slot}`);
+  if (!player.IsBot()) sayHold();
+  if (t.startsWith("!")) log(`chat command "${t}" from slot ${slot}`);
   if (t === "!spec" || t === "!spectate") {
     if (pe && pe.status === "playing") { const a = pe.arena; rm.leaveArena(pe, "spectate"); rm.spectate(pe, a); }
   } else if (t === "!afk") {
     if (pe) { pe.afk = true; if (pe.status === "playing") { const a = pe.arena; rm.leaveArena(pe, "afk"); rm.spectate(pe, a); } }
   } else if (t === "!back") {
     if (pe) { pe.afk = false; rm.markActive(slot); if (pe.status === "spectating" && phase === "running") { pe.status = "none"; rm.lateJoin(pe); } }
-  } else if (t === "!body move" || t === "!body snap" || t === "!body off") {
-    setOwnBody(t.slice(6)); sayAll("own body mode: " + t.slice(6));
   } else if (t === "!doom" || t === "!fdm") {
+    if (pe && pe.player) { pe.player.message = "R NEXT  F PREV  E USE  SHIFT WALK"; pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
     sayAll(`FreeDM ${VERSION}. Next weapon: R or right click. Previous: F. Use: E or SPACE. Walk: SHIFT.`);
     sayAll("Chat: !spec watch other arenas, !afk sit out, !back rejoin.");
   }

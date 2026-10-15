@@ -56,6 +56,10 @@ def P(id_=None, cls=None, children=None):
 rule('.FdmWrap', width='100%', height='100%')
 rule('.FdmRoot', width='100%', height='100%', visibility='collapse')
 rule('.FdmRoot.On', visibility='visible')
+# lobby: only the text lines
+rule('.FdmRoot.Lobby', visibility='visible')
+for c in ('Flash', 'Wpn', 'Team', 'SBar', 'MsgLine', 'XHair'):
+    rule('.FdmRoot.Lobby .' + c, visibility='collapse')
 rule('.Flash', width='100%', height='100%', background_color='#00000000')
 for i in range(8):
     rule('.Flash.red%d' % (i + 1), background_color='#ff0000%02x' % int(255 * (i + 1) * 0.9 / 8))

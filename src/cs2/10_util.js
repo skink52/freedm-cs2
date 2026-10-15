@@ -37,7 +37,15 @@ function pawnOf(slot) {
 
 function inputBit(name) { return CSInputs[name]; }
 
-// chat lines are queued and sent from the think loop: a "say" issued from inside the chat callback itself is dropped by CS2
+// chat lines are queued and sent one at a time from the think loop. On a listen server "say" speaks as the host,
+// and CS2's chat flood limit drops a line sent right after another one (or right after the host typed something).
 const sayQueue = [];
+let sayNext = 0;
 function sayAll(text) { sayQueue.push("say " + String(text).replace(/[;"]/g, "")); }
-function flushSays() { while (sayQueue.length) Instance.ServerCommand(sayQueue.shift()); }
+function sayHold() { sayNext = Math.max(sayNext, Instance.GetGameTime() + CONFIG.SAY_GAP); }
+function flushSays() {
+  const now = Instance.GetGameTime();
+  if (!sayQueue.length || now < sayNext) return;
+  Instance.ServerCommand(sayQueue.shift());
+  sayNext = now + CONFIG.SAY_GAP;
+}

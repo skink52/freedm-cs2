@@ -8,7 +8,7 @@ const CONFIG = {
   FFA_FRAGS: 20,                 // first to this many (scaled down for small arenas)
   TDM_FRAGS: 32,                 // team total (scaled down for small arenas)
   ARENA_MAX: 16, ARENA_MIN: 6, MAX_ARENAS: 4,
-  MIN_PLAYERS: 1,                // fewer than this on T/CT: no Doom round, players stay in the lobby
+  MIN_PLAYERS: 2,                // fewer than this on T/CT (bots count): no Doom round, players stay in the lobby
   ROUND_SECONDS: 600,            // the script sets the CS2 round timer to this at round start
   ELIM_SECONDS: 240,             // elimination / last man standing arenas end after this (most alive wins)
   ITEMS_RESPAWN: true,           // Doom "deathmatch 2.0": items respawn, weapons are picked up
@@ -40,7 +40,7 @@ const CONFIG = {
   RESPAWN_CVARS_ON: ["mp_respawn_on_death_t 1", "mp_respawn_on_death_ct 1"],
   RESPAWN_CVARS_OFF: ["mp_respawn_on_death_t 0", "mp_respawn_on_death_ct 0"],
   EYE_FORWARD: 15,               // Doom units the camera sits ahead of the player centre (keeps the eye outside the marine model)
-  OWN_BODY: "move",            // own Doom marine: "move" (smoothed), "snap" (teleport each tick), "off" (invisible to everyone); !body <mode> switches live
+  OWN_BODY: "move",            // own Doom marine: "move" (smoothed), "snap" (teleport each tick), "off" (invisible to everyone)
   HIDE_OWN_BODY: true,           // make the parked CS2 pawn invisible (its body otherwise shows under the Doom view)
   HIDE_CS_HUD: false,            // cl_draw_only_deathnotices can't be set from a server script (CS2 refuses it); kept for servers that allow it
 
@@ -51,6 +51,7 @@ const CONFIG = {
   USE_KEYS: ["USE", "JUMP"],
   WALK_KEY: "WALK",              // hold to walk (Doom's default is to run)
   CHAT_COMMANDS: true,
+  SAY_GAP: 1.0,                  // seconds between chat lines the script sends (CS2 drops chat sent too fast)
 
   // ---- rendering
   TICK_INTERP: true,

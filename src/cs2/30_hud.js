@@ -6,8 +6,12 @@ let hudEnt;
 const hudCache = new Map();   // slot -> Map(panelId -> class)
 
 function hud() {
-  hudEnt = live(hudEnt) || live(Instance.FindEntityByName(CONFIG.HUD));
-  if (!hudEnt) warnOnce("hud", "no custom_hud_layout named " + CONFIG.HUD + " - no Doom HUD");
+  if (live(hudEnt)) return hudEnt;
+  hudEnt = live(Instance.FindEntityByName(CONFIG.HUD));
+  if (!hudEnt) { warnOnce("hud", "no custom_hud_layout named " + CONFIG.HUD + " - no Doom HUD"); return hudEnt; }
+  // a (re)found HUD entity doesn't know what we sent before: clear it and resend everything
+  for (const slot of hudCache.keys()) { try { hudEnt.ResetForPlayer(slot); } catch (err) { /* ignore */ } }
+  hudCache.clear();
   return hudEnt;
 }
 
@@ -168,4 +172,13 @@ function hudPlayer(slot, p, arena, info) {
 
 function hudOff(slot) {
   hudSwap(slot, "fdm_root", null);
+}
+
+// lobby: only the text lines (top right, centre, bottom)
+function hudLobby(slot, info) {
+  hudSwap(slot, "fdm_root", "Lobby");
+  hudText(slot, "fdm_inf1_", 32, info.line1 || "");
+  hudText(slot, "fdm_inf2_", 32, info.line2 || "");
+  hudText(slot, "fdm_ctr", 24, info.center || "");
+  hudText(slot, "fdm_spec", 32, info.spec || "");
 }

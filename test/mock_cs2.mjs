@@ -100,7 +100,7 @@ class Controller {
   constructor(slot, name, team, bot) { this.slot = slot; this.name = name; this.team = team; this.bot = bot; this.connected = true; this.pawn = new Pawn(this); this.score = 0; this.brain = { turn: 0 }; }
   GetPlayerSlot() { return this.slot; } GetPlayerName() { return this.name; } GetPlayerPawn() { return this.pawn && this.pawn.valid ? this.pawn : undefined; }
   IsBot() { return this.bot; } IsConnected() { return this.connected; } GetTeamNumber() { return this.team; }
-  AddScore(n) { this.score += n; } JoinTeam(t) { this.team = t; } IsValid() { return this.connected; }
+  AddScore(n) { this.score += n; } GetScore() { return this.score || 0; } JoinTeam(t) { this.team = t; } IsValid() { return this.connected; }
   respawn() { this.pawn = new Pawn(this); hooks.OnPlayerReset && hooks.OnPlayerReset({ player: this.pawn }); }
 }
 const players = [];
