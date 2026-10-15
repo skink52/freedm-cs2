@@ -34,7 +34,7 @@ Everything else is plain props:
 
 ## 3. How it plays
 
-- Players spawn in the lobby. After freeze time everyone on T/CT is split into Doom arenas: up to four, filled to 16 first, minimum 6.
+- Players spawn in the lobby. After freeze time everyone on T/CT is split into Doom arenas: up to four, filled to 16 first, minimum 6. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
 - Each round picks one mode:
 
   | Mode | Rule | Chance |
@@ -65,7 +65,9 @@ Everything else is plain props:
 | R or Mouse 2 | next weapon |
 | F (inspect) | previous weapon |
 
-Chat: `!doom` (help), `!spec`, `!afk`, `!back`.
+Chat: `!doom` (controls, shown on your own screen), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small).
+
+Frags during CS2 warmup are not sent to the scoreboard.
 
 ## Settings
 
