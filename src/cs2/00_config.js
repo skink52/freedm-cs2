@@ -51,6 +51,7 @@ const CONFIG = {
   USE_KEYS: ["USE", "JUMP"],
   WALK_KEY: "WALK",              // hold to walk (Doom's default is to run)
   CHAT_COMMANDS: true,
+  HELP_SECONDS: 8,               // how long !doom shows the controls on that player's screen
   SAY_GAP: 1.0,                  // seconds between chat lines the script sends (CS2 drops chat sent too fast)
 
   // ---- rendering

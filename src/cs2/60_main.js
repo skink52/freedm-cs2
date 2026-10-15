@@ -263,6 +263,7 @@ function infoFor(pe, now) {
     const t = a.players.get(pe.spec.target);
     spec = t ? "SPECTATING " + t.name.slice(0, 20) : "SPECTATING";
   } else if (pe.player && pe.player.playerstate === "dead" && a.mode.respawn) spec = "RESPAWNING...";
+  if (!spec && pe.helpUntil > now) spec = "CHAT: !SPEC  !AFK  !BACK";
   return { line1, line2, center, spec };
 }
 
@@ -300,6 +301,7 @@ function lobbyInfo(pe, now) {
     if (pe.afk) info.spec = "AFK - TYPE !BACK TO PLAY";
     else if (pe.csTeam !== 2 && pe.csTeam !== 3) info.spec = "JOIN T OR CT TO PLAY";
   }
+  if (pe.helpUntil > now) { info.center = "R NEXT  F PREV  E USE"; info.spec = "SHIFT WALK - !SPEC !AFK !BACK"; }
   return info;
 }
 
@@ -478,8 +480,8 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
   } else if (t === "!back") {
     if (pe) { pe.afk = false; rm.markActive(slot); if (pe.status === "spectating" && phase === "running") { pe.status = "none"; rm.lateJoin(pe); } }
   } else if (t === "!doom" || t === "!fdm") {
-    if (pe && pe.player) { pe.player.message = "R NEXT  F PREV  E USE  SHIFT WALK"; pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
-    sayAll(`FreeDM ${VERSION}. Next weapon: R or right click. Previous: F. Use: E or SPACE. Walk: SHIFT.`);
-    sayAll("Chat: !spec watch other arenas, !afk sit out, !back rejoin.");
+    // shown only on the HUD of whoever typed it (CS2 scripts can't send a private chat line)
+    if (pe) pe.helpUntil = Instance.GetGameTime() + CONFIG.HELP_SECONDS;
+    if (pe && pe.player) { pe.player.message = "R NEXT  F PREV  E USE  SHIFT WALK"; pe.player.messageTime = (pe.arena ? pe.arena.leveltime : 0) + (CONFIG.HELP_SECONDS - 4) * TICRATE; }
   }
 }));
