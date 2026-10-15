@@ -410,6 +410,7 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
   const slot = player.GetPlayerSlot();
   const pe = rm.person(slot);
   const t = text.trim().toLowerCase();
+  if (t.startsWith("!")) Instance.Msg(`[freedm] chat command "${t}" from slot ${slot}`);
   if (t === "!spec" || t === "!spectate") {
     if (pe && pe.status === "playing") { const a = pe.arena; rm.leaveArena(pe, "spectate"); rm.spectate(pe, a); }
   } else if (t === "!afk") {
