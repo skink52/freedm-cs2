@@ -99,7 +99,8 @@ for name in WFRAMES:
 SBAR_SCALE = 0.85
 rule('.SBarBox', width=px(320, SX), height=px(34, SY), horizontal_align='center', vertical_align='bottom',
      transform_origin='50% 100%', transform='scale3d(%.2f, %.2f, 1)' % (SBAR_SCALE, SBAR_SCALE))
-rule('.SBarBox.right', horizontal_align='right', transform_origin='100% 100%')
+# Panorama only re-places a panel when its size changes, so the class also nudges the width
+rule('.SBarBox.right', horizontal_align='right', transform_origin='100% 100%', width='%.1fpx' % (320 * SX + 0.5))
 rule('.SBarBox.classic', transform='scale3d(1, 1, 1)')
 rule('.SBarBox.small', transform='scale3d(0.65, 0.65, 1)')
 rule('.SBar', width=px(320, SX), height=px(32, SY), margin_top=px(2, SY))

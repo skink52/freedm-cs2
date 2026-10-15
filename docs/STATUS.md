@@ -36,8 +36,9 @@ HELP_SECONDS (8) on the typing player's own HUD (message line + bottom line in a
 CS2 scripts can't send private chat or hide the "!doom" line itself. The CS2 chat box can't be moved or resized from
 a map (the CS2 health box can't be hidden either). Status bar (.SBarBox in tools/hud.py, panel id fdm_sbarbox):
 centred at 85% by default; `!hud` per player cycles centre -> right -> classic (full size) -> small (65%), or
-`!hud centre|right|classic|small`; listed in the !doom help. 09:37 test of !hud did nothing - most likely the game
-was loaded before the 09:34 files arrived; recheck after a reload (the message line confirms the switch).
+`!hud centre|right|classic|small`; listed in the !doom help. 09:42: !hud resizes but "right" didn't move: Panorama doesn't re-place a panel
+when only horizontal-align changes by class. Fix sent: .right also nudges width by 0.5px. If still not moving, plan B:
+full-width slider panel translated 50% (own width) plus the bar translated -612px (half its 85% width).
 
 ## Open problems
 1. Scoreboard kills with a second human: check the `CS2 kill:` lines and whether the warmup warning appears.
