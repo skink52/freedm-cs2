@@ -340,6 +340,7 @@ function frame(dt) {
 }
 
 function think() {
+  flushSays();
   const now = Instance.GetGameTime();
   let dt = now - lastTime;
   lastTime = now;

@@ -42,7 +42,7 @@ const CONFIG = {
   EYE_FORWARD: 15,               // Doom units the camera sits ahead of the player centre (keeps the eye outside the marine model)
   OWN_BODY: "move",            // own Doom marine: "move" (smoothed), "snap" (teleport each tick), "off" (invisible to everyone); !body <mode> switches live
   HIDE_OWN_BODY: true,           // make the parked CS2 pawn invisible (its body otherwise shows under the Doom view)
-  HIDE_CS_HUD: true,             // asks each client to hide the CS2 HUD (everything but the killfeed)
+  HIDE_CS_HUD: false,            // cl_draw_only_deathnotices can't be set from a server script (CS2 refuses it); kept for servers that allow it
 
   // ---- input
   // CS2 gives scripts no number keys, so: R = next weapon, F (inspect) = previous, right click = next

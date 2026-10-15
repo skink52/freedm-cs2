@@ -37,4 +37,7 @@ function pawnOf(slot) {
 
 function inputBit(name) { return CSInputs[name]; }
 
-function sayAll(text) { Instance.ServerCommand("say " + String(text).replace(/[;"]/g, "")); }
+// chat lines are queued and sent from the think loop: a "say" issued from inside the chat callback itself is dropped by CS2
+const sayQueue = [];
+function sayAll(text) { sayQueue.push("say " + String(text).replace(/[;"]/g, "")); }
+function flushSays() { while (sayQueue.length) Instance.ServerCommand(sayQueue.shift()); }
