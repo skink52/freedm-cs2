@@ -95,7 +95,12 @@ for name in WFRAMES:
          background_image='url("%s")' % url, background_size='100% 100%', background_repeat='no-repeat')
 
 # status bar
-rule('.SBar', width=px(320, SX), height=px(32, SY), margin_top=px(168, SY))
+# the status bar sits in the bottom-right corner of the whole screen, shrunk a little, so the CS2 chat
+# (bottom left) fits beside it on widescreen
+SBAR_SCALE = 0.85
+rule('.SBarBox', width=px(320, SX), height=px(34, SY), horizontal_align='right', vertical_align='bottom',
+     transform_origin='100% 100%', transform='scale3d(%.2f, %.2f, 1)' % (SBAR_SCALE, SBAR_SCALE))
+rule('.SBar', width=px(320, SX), height=px(32, SY), margin_top=px(2, SY))
 stbar = img_rule('.SBarBg', 'STBAR', 0, 0)
 sbar_children = [P(None, 'SBarBg')]
 
@@ -189,14 +194,12 @@ rule('.CtrLine', horizontal_align='center', margin_top=px(60, SY))
 rule('.InfLine1', horizontal_align='right', margin_right=px(2, SX), margin_top=px(10, SY))
 rule('.InfLine2', horizontal_align='right', margin_right=px(2, SX), margin_top=px(19, SY))
 rule('.SpecLine', horizontal_align='center', margin_top=px(158, SY))
-rule('.Team', width=px(320, SX), height=px(2, SY), margin_top=px(166, SY))
+rule('.Team', width=px(320, SX), height=px(2, SY))
 rule('.Team.teamred', background_color='#e61e1ecc')
 rule('.Team.teamblue', background_color='#3c5affcc')
 
 screen = P('fdm_screen', 'Screen', [
     P('fdm_wpn', 'Wpn', [P('fdm_wbob', 'WBob', [P('fdm_wspr', 'WSpr'), P('fdm_wflash', 'WSpr')])]),
-    P('fdm_team', 'Team'),
-    P('fdm_sbar', 'SBar', sbar_children),
     line('fdm_msg', 40, 'MsgLine'),
     line('fdm_ctr', 24, 'CtrLine Big'),
     line('fdm_inf1_', 32, 'InfLine1'),
@@ -210,7 +213,8 @@ for k in range(7):
 xh_url = save('xhair', xh)
 rule('.XHair', width=px(7, SX), height=px(7, SY), horizontal_align='center', vertical_align='center',
      background_image='url("%s")' % xh_url, background_size='100% 100%', background_repeat='no-repeat', opacity='0.8')
-root = P('fdm_root', 'FdmRoot', [P('fdm_flash', 'Flash'), screen])
+sbarbox = P(None, 'SBarBox', [P('fdm_team', 'Team'), P('fdm_sbar', 'SBar', sbar_children)])
+root = P('fdm_root', 'FdmRoot', [P('fdm_flash', 'Flash'), screen, sbarbox])
 # the root panel may not carry an id (CustomHud validation), so fdm_root sits inside a plain full-screen panel
 doc = ('<root>\n\t<styles>\n\t\t<include src="file://{resources}/styles/custom_game/freedm.css" />\n\t</styles>\n'
        '\t<Panel class="FdmWrap" hittest="false">\n' + root + '\n\t</Panel>\n</root>\n')
