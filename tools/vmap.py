@@ -69,7 +69,7 @@ for k, s in enumerate(SOUNDS):
         startOnSpawn='0', toLocalPlayer='0', stopOnNew='0', saveAndRestore='0')
 for p in props:
     o = p['origin']
-    if p['mover']:
+    if p['mover'] or p.get('anim'):
         ent('prop_dynamic', o, targetname=p['name'], model=p['model'], solid='0', disableshadows='1', fademindist='-1')
     else:
         ent('prop_static', o, model=p['model'], solid='0', disableshadows='1', fademindist='-1', fademaxdist='0',

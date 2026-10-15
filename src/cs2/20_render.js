@@ -7,6 +7,7 @@ const SKIN_FUZZ = 16;
 const HIDE_POS = { x: 0, y: 0, z: -15000 };
 
 let propTemplate;
+const ANIM_TICS = 8;
 // how a human player's own marine is placed: "move" (interpolated), "snap" (teleport each tick), "off" (not drawn)
 let OWN_BODY = CONFIG.OWN_BODY;
 function setOwnBody(mode) { OWN_BODY = mode; }
@@ -63,8 +64,18 @@ class ArenaView {
     this.props = new Map();     // mobj id -> prop
     this.fxCount = 0;
     this.movers = [];
+    this.anims = [];
     this.off = arena.level.off;
     this.findMovers();
+    this.findAnims();
+  }
+
+  findAnims() {
+    for (const [name, frames] of this.arena.level.anims) {
+      const ent = live(Instance.FindEntityByName(name));
+      if (!ent) { warnOnce("anim" + name, "animated surface " + name + " is missing from the map"); continue; }
+      this.anims.push({ ent, frames, last: -1 });
+    }
   }
 
   findMovers() {
@@ -92,6 +103,14 @@ class ArenaView {
       m.last = h;
       if (!live(m.ent)) continue;
       m.ent.Teleport({ position: { x: m.base.x, y: m.base.y, z: m.base.z + (h - m.h0) * ZSCALE } });
+    }
+    // animated flats and walls: one skin per Doom animation frame, 8 tics each
+    const frame = Math.floor(a.leveltime / ANIM_TICS);
+    for (const an of this.anims) {
+      const skin = frame % an.frames;
+      if (skin === an.last || !live(an.ent)) continue;
+      an.last = skin;
+      Instance.EntFireAtTarget({ target: an.ent, input: "Skin", value: skin });
     }
     // things
     const seen = new Set();
@@ -160,5 +179,6 @@ class ArenaView {
     this.fxCount = 0;
     // put movers back to their map positions
     for (const m of this.movers) if (live(m.ent)) m.ent.Teleport({ position: m.base });
+    for (const an of this.anims) if (live(an.ent)) Instance.EntFireAtTarget({ target: an.ent, input: "Skin", value: 0 });
   }
 }

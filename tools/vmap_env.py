@@ -86,9 +86,23 @@ seed = ent('func_nav_markup', (0, 0, 0), group=GROUP, navProperty_NavGen='WALKAB
 v, faces = box_faces(-704, -704, LZ + 1, 704, 704, LZ + 40, inward=False)
 seed.attr('children')[2].append(mesh_node(polymesh(v, faces, ['materials/tools/toolsnavattribute.vmat'] * 6, scale=1.0), GROUP, attach=False))
 
+# ---------------------------------------------------------------- level geometry props: always match the current build
+def is_level_prop(c):
+    if c.type != 'CMapEntity': return False
+    ep = c.get('entity_properties')
+    return ep.get('classname') in ('prop_static', 'prop_dynamic') and (ep.get('model') or '').startswith('models/fdm/m')
+
+props = json.load(open(os.path.join(OUT, '_gen/props.json')))
+for p in props:
+    if p['mover'] or p.get('anim'):
+        ent('prop_dynamic', p['origin'], targetname=p['name'], model=p['model'], solid='0', disableshadows='1', fademindist='-1')
+    else:
+        ent('prop_static', p['origin'], model=p['model'], solid='0', disableshadows='1', fademindist='-1', fademaxdist='0',
+            rendertocubemaps='0', bakelighting='0', visoccluder='0')
+
 # ---------------------------------------------------------------- replace our previous environment, keep everything else
 kids = world.attr('children')
-kept = [c for c in kids[2] if c.get('customVisGroup', '') != GROUP]
+kept = [c for c in kids[2] if c.get('customVisGroup', '') != GROUP and not is_level_prop(c)]
 removed = len(kids[2]) - len(kept)
 kids[2] = kept + vmaplib.new_children
 
@@ -97,6 +111,9 @@ refs = pre['map_asset_references'][2]
 for m in (MOONDOME, TOOLSSKY, 'materials/tools/toolsnavattribute.vmat'):
     if m not in refs: refs.append(m)
 names = pre['map_subasset_reference_names'][2]; cnts = pre['map_subasset_reference_counts'][2]
+for cls in ('prop_static', 'prop_dynamic'):
+    k = sum(1 for c in kids[2] if c.type == 'CMapEntity' and c.get('entity_properties').get('classname') == cls)
+    if cls in names: cnts[names.index(cls)] = k
 for cls in ('visibility_hint', 'func_nav_markup'):
     k = vmaplib.counts[cls]
     if cls in names: cnts[names.index(cls)] = k

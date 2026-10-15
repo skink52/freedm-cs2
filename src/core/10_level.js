@@ -39,6 +39,7 @@ class Level {
     this.data = data;
     this.id = data.id;
     this.off = data.off;
+    this.anims = data.an || [];      // [name of the animated-surface prop, frame count]
     const V = data.v;
     this.sectors = data.s.map((d, i) => new Sector(i, d));
     this.lines = data.l.map((d, i) => new Line(i, d, V, this.sectors));

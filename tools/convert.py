@@ -32,6 +32,35 @@ RAISE_TO_CEIL = {5, 24, 64, 91, 101, 55, 56, 65, 94}
 STAIRS = {7, 8, 100, 127}
 
 
+# Doom's texture animations (P_InitPicAnims): every frame lasts 8 tics
+ANIM_FLATS = [['NUKAGE1', 'NUKAGE2', 'NUKAGE3'], ['FWATER1', 'FWATER2', 'FWATER3', 'FWATER4'],
+              ['SWATER1', 'SWATER2', 'SWATER3', 'SWATER4'], ['LAVA1', 'LAVA2', 'LAVA3', 'LAVA4'],
+              ['BLOOD1', 'BLOOD2', 'BLOOD3'], ['RROCK05', 'RROCK06', 'RROCK07', 'RROCK08'],
+              ['SLIME01', 'SLIME02', 'SLIME03', 'SLIME04'], ['SLIME05', 'SLIME06', 'SLIME07', 'SLIME08'],
+              ['SLIME09', 'SLIME10', 'SLIME11', 'SLIME12']]
+ANIM_WALLS = [['BLODGR1', 'BLODGR2', 'BLODGR3', 'BLODGR4'], ['SLADRIP1', 'SLADRIP2', 'SLADRIP3'],
+              ['BLODRIP1', 'BLODRIP2', 'BLODRIP3', 'BLODRIP4'], ['FIREWALA', 'FIREWALB', 'FIREWALL'],
+              ['GSTFONT1', 'GSTFONT2', 'GSTFONT3'], ['FIRELAV3', 'FIRELAVA'], ['FIREMAG1', 'FIREMAG2', 'FIREMAG3'],
+              ['FIREBLU1', 'FIREBLU2'], ['ROCKRED1', 'ROCKRED2', 'ROCKRED3'], ['BFALL1', 'BFALL2', 'BFALL3', 'BFALL4'],
+              ['SFALL1', 'SFALL2', 'SFALL3', 'SFALL4'], ['WFALL1', 'WFALL2', 'WFALL3', 'WFALL4'],
+              ['DBRAIN1', 'DBRAIN2', 'DBRAIN3', 'DBRAIN4']]
+ANIM_TICS = 8
+ANIM = {}
+for _kind, _groups in (('f', ANIM_FLATS), ('w', ANIM_WALLS)):
+    for _frames in _groups:
+        for _i, _n in enumerate(_frames):
+            ANIM[(_kind, _n)] = (_frames[0], _frames, _i)
+
+
+def anim_of(kind, name):
+    """(group name, frames, index of this frame) for an animated texture, else None"""
+    a = ANIM.get((kind, name.upper()))
+    if not a: return None
+    exists = assets.texture if kind == 'w' else assets.flat
+    if any(exists(f) is None for f in a[1]): return None
+    return a
+
+
 def pot(n):
     k = 1
     while k < n: k *= 2
@@ -158,6 +187,7 @@ class Bucket:
     def __init__(self, name, origin):
         self.name = name; self.origin = origin  # origin (x, y, zDoom) of the model in Doom coords
         self.tris = []  # (matkey, [(x,y,z,u,v)*3], normal)
+        self.anim = None
 
     def add_poly(self, mat, pts, normal):
         # pts in Doom coords with uv; convex fan, assumed CCW from the visible side
@@ -199,6 +229,7 @@ VMDL = """<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} f
 						use_global_default = false
 						global_default_material = ""
 					},
+%(skins)s
 				]
 			},
 			{
@@ -224,6 +255,17 @@ VMDL = """<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} f
 		document_sub_type = "ModelDocSubType_None"
 	}
 }
+"""
+
+
+ANIM_GROUP = """					{
+						_class = "MaterialGroup"
+						name = "anim%d"
+						remaps =
+						[
+%s
+						]
+					},
 """
 
 
@@ -337,10 +379,24 @@ class Level:
             self.buckets[k] = Bucket(k, (round(ox), round(oy), oz))
         return self.buckets[k]
 
-    def bucket_for(self, sec, plane, x, y):
+    def anim_bucket(self, kind, group):
+        k = 'a%s_%s' % (kind, group.lower())
+        if k not in self.buckets:
+            self.buckets[k] = Bucket(k, (self.center[0], self.center[1], 0))
+            self.buckets[k].anim = (kind, group)
+        return self.buckets[k]
+
+    def bucket_for(self, sec, plane, x, y, tex=None):
         if sec is not None and ((plane == 'f' and sec in self.floor_mv) or (plane == 'c' and sec in self.ceil_mv)):
             return self.mover_bucket(sec, plane)
+        if tex is not None:
+            a = anim_of('f', tex)
+            if a: return self.anim_bucket('f', a[0])
         return self.static_bucket(x, y)
+
+    def wall_bucket(self, x, y, tex):
+        a = anim_of('w', tex)
+        return self.anim_bucket('w', a[0]) if a else self.static_bucket(x, y)
 
     def light_of(self, sec, contrast=0):
         return (self.m['sectors'][sec]['light'] >> 4) + contrast
@@ -370,11 +426,11 @@ class Level:
             lt = self.light_of(sec)
             mat = self.mats.get('f', s['ftex'], lt)
             pts = [(x, y, s['floor'], x / 64.0, y / 64.0) for x, y in p]
-            self.bucket_for(sec, 'f', cx, cy).add_poly(mat, pts, (0, 0, 1))
+            self.bucket_for(sec, 'f', cx, cy, s['ftex']).add_poly(mat, pts, (0, 0, 1))
             if not self.sky(sec):
                 mat = self.mats.get('f', s['ctex'], lt)
                 pts = [(x, y, s['ceil'], x / 64.0, y / 64.0) for x, y in p[::-1]]
-                self.bucket_for(sec, 'c', cx, cy).add_poly(mat, pts, (0, 0, -1))
+                self.bucket_for(sec, 'c', cx, cy, s['ctex']).add_poly(mat, pts, (0, 0, -1))
         # ---- walls
         for li, l in enumerate(m['lines']):
             for side in (0, 1):
@@ -416,7 +472,7 @@ class Level:
                 top = ys['floor'] + self.mats.texsize('w', sd['mid'])[1] if sd['mid'] not in ('-', '') else 0
             else:
                 top = ys['ceil']
-            quad(self.static_bucket(midx, midy), sd['mid'], fmin, cmax, top, scroll=scroll)
+            quad(self.wall_bucket(midx, midy, sd['mid']), sd['mid'], fmin, cmax, top, scroll=scroll)
             return
         X = osd['sector']; xs_ = S[X]
         if X == Y and not (sd['mid'] not in ('-', '')):
@@ -427,6 +483,7 @@ class Level:
             top = ys['ceil'] if flags & ML_DONTPEGBOTTOM else xs_['floor']
             depth_bottom = xs_['floor'] - (X_fmax - Y_fmin)   # in X-initial coordinates
             b = self.bucket_for(X, 'f', midx, midy)
+            if b.name.startswith('s'): b = self.wall_bucket(midx, midy, sd['lower'])
             quad(b, sd['lower'], min(depth_bottom, xs_['floor']), xs_['floor'], top, scroll=scroll)
         # upper: face towards Y belongs to X's ceiling column
         X_cmin, X_cmax = self.cr[X]; Y_cmin, Y_cmax = self.cr[Y]
@@ -437,6 +494,7 @@ class Level:
                 top = xs_['ceil'] + self.mats.texsize('w', sd['upper'])[1]
             height_top = xs_['ceil'] + (Y_cmax - X_cmin)
             b = self.bucket_for(X, 'c', midx, midy)
+            if b.name.startswith('s'): b = self.wall_bucket(midx, midy, sd['upper'])
             quad(b, sd['upper'], xs_['ceil'], max(height_top, xs_['ceil']), top, scroll=scroll)
         # middle (masked, drawn once, clipped to the opening)
         if sd['mid'] not in ('-', '') and assets.texture(sd['mid']) is not None:
@@ -448,7 +506,7 @@ class Level:
                 top = hi
             zt = min(hi, top + yoff); zb = max(lo, top + yoff - h)
             # (the texture covers [top - h, top] shifted by the row offset)
-            quad(self.static_bucket(midx, midy), sd['mid'], zb, zt, top, alpha=True, scroll=scroll)
+            quad(self.wall_bucket(midx, midy, sd['mid']), sd['mid'], zb, zt, top, alpha=True, scroll=scroll)
 
     # ------------------------------------------------------------ output
     def write(self, out, offset):
@@ -460,13 +518,30 @@ class Level:
             name = '%s_%s' % (self.tag, k)
             open(os.path.join(mdir, name + '.smd'), 'w', newline='\n').write(b.smd())
             used = {mat: self.mats.mats[mat] for mat, _, _ in b.tris}
-            vm = VMDL % dict(remaps=remap_block(used), name=name, smd='models/fdm/%s/%s.smd' % (self.tag, name))
+            skins = ''
+            frames = 1
+            if b.anim:
+                # one material group per animation frame: every mesh material swaps to the same texture state of that frame
+                kind, group = b.anim
+                frames_list = ANIM[(kind, group)][1]
+                frames = len(frames_list)
+                for fi in range(1, frames):
+                    remaps = {}
+                    for mat in used:
+                        kind_, rest = mat.split('_', 1)
+                        texname, tail = rest.rsplit('_l', 1)
+                        step = int(''.join(ch for ch in tail if ch.isdigit()))
+                        alpha = 'a' in tail; scroll = 's' in tail
+                        remaps[mat] = self.mats.mats[self.mats.get(kind, frames_list[fi], step, alpha, scroll)]
+                    skins += ANIM_GROUP % (fi, remap_block(remaps))
+            vm = VMDL % dict(remaps=remap_block(used), skins=skins, name=name, smd='models/fdm/%s/%s.smd' % (self.tag, name))
             open(os.path.join(mdir, name + '.vmdl'), 'w', newline='\n').write(vm)
             ox, oy, oz = b.origin
             world = (offset[0] + ox - self.center[0], offset[1] + oy - self.center[1], offset[2] + oz * ZS)
             props.append(dict(model='models/fdm/%s/%s.vmdl' % (self.tag, name), origin=world,
-                              mover=None if k.startswith('s') else k, name='fdm_%s_%s' % (self.tag, k),
-                              tris=len(b.tris)))
+                              mover=None if k.startswith('s') or k.startswith('a') else k, name='fdm_%s_%s' % (self.tag, k),
+                              tris=len(b.tris), anim=frames if b.anim else 0))
+        self.anim_props = [[q['name'], q['anim']] for q in props if q['anim']]
         return props
 
     def runtime(self, offset):
@@ -484,6 +559,7 @@ class Level:
             ss=self.ss_sector,
             t=[[t['x'], t['y'], t['angle'], t['type'], t['flags']] for t in m['things']],
             mf=sorted(self.floor_mv), mc=sorted(self.ceil_mv),
+            an=getattr(self, 'anim_props', []),
             bb=list(self.bbox),
         )
         return d
