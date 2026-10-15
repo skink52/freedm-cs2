@@ -30,11 +30,15 @@ Changes:
   (Doom frags are not sent to CS2 during warmup - likely cause of the scoreboard problem with a 2nd human).
 - `!body` removed; MIN_PLAYERS 2 (bots count, so a solo player with bots still gets rounds).
 
+## Update 16 Oct 09:35
+Zach confirmed !doom and the T/CT round score work. !doom is now local: no chat broadcast, the controls show for
+HELP_SECONDS (8) on the typing player's own HUD (message line + bottom line in an arena, centre + bottom in the lobby).
+CS2 scripts can't send private chat or hide the "!doom" line itself. The CS2 chat box can't be moved or resized from
+a map; the option is to shrink/move the Doom status bar (.SBar in tools/hud.py, CSS only) - waiting on a screenshot.
+
 ## Open problems
-1. Verify !doom chat reply with the paced queue.
-2. Confirm on the scoreboard that the T/CT win ticks (console now prints the CS2 round result).
-3. Scoreboard kills with a second human: check the `CS2 kill:` lines and whether the warmup warning appears.
-4. Zach's own additions to the map exist in ref/mg_freedm_hammer_saved_4.vmap (his 22:33 save); the map was
+1. Scoreboard kills with a second human: check the `CS2 kill:` lines and whether the warmup warning appears.
+2. Zach's own additions to the map exist in ref/mg_freedm_hammer_saved_4.vmap (his 22:33 save); the map was
    regenerated from it at 08:02 15/16 Oct. Always rebuild from his latest Hammer save (FDM_CURRENT_VMAP).
 
 ## Requested next
