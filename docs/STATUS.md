@@ -1,6 +1,6 @@
 # Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 09:05 Adelaide)
 
-Repo: https://github.com/skink52/freedm-cs2, being renamed to https://github.com/skink52/hellmatch-cs2 (source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
+Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
 Always rebuild the map from Zach's latest Hammer save: `FDM_CURRENT_VMAP=<his mg_hellmatch.vmap>` keeps his edits.
 Renamed 17 Oct 09:05: public name Hellmatch, map mg_hellmatch (tools/names.py). Internal names stay: addon folder
@@ -171,10 +171,9 @@ README_HELLMATCH.md, MUSIC_CREDITS.txt.
   mg_freedm.txt, the compiled mg_freedm* panorama images, README_FREEDM.md. Must happen before the Workshop upload,
   or the old map ships too. Then open maps/mg_hellmatch.vmap in Hammer and do a full build.
 - Workshop: full description with the licence in docs/WORKSHOP_DESCRIPTION.txt (4.8k chars); images dist/workshop_*.jpg.
-- GitHub repo rename to hellmatch-cs2: Zach said yes, but the session proxy refuses repository-settings writes
-  (HTTP 403 'Repository settings writes are not permitted through this proxy'), so Zach renames it in GitHub
-  (Settings > General > Repository name) and sets the About text. Docs/description already link hellmatch-cs2.
-  After the rename: git remote set-url origin https://github.com/skink52/hellmatch-cs2 (old URL redirects meanwhile).
+- GitHub repo renamed to hellmatch-cs2 by Zach (the session proxy refuses repository-settings writes, HTTP 403).
+  Pushing to the new name needs the repo attached to the session (add_repo skink52/hellmatch-cs2, access push).
+  Working copy with build caches: /home/claude/freedm-cs2 (remote now hellmatch-cs2).
 
 ## Update 17 Oct 09:45 - visibility compile took 30+ minutes
 Zach's full build sat in the vis step: "Generated clusters for 1814535 regions in 1013 s, 18442235 clusters".
