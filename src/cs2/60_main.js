@@ -107,7 +107,7 @@ function startDoomRound() {
   pendingKills.length = 0; elimKills.length = 0;
   // the arenas themselves are built one per Doom tic (see arenaBuilt) so the server doesn't hitch
   const desc = rm.plan.map((it) => `${it.L.title} (${it.grp.length}${it.loadout ? ", " + LOADOUTS[it.loadout].name : ""})`).join(", ");
-  sayAll(`DOOM: ${MODES[rm.modeKey].name} - ${desc}`);
+  sayAll(`HELLMATCH: ${MODES[rm.modeKey].name} - ${desc}`);
   log(`round ${rm.roundNumber}: ${rm.modeKey}, arenas ${rm.plan.map((it) => it.mk + ":" + it.grp.length + (it.loadout ? "+" + it.loadout : "")).join(" ")}`);
 }
 
@@ -129,7 +129,7 @@ function endDoomRound() {
   if (CONFIG.REAL_KILLS && !Instance.IsWarmupPeriod()) for (const k of elimKills) csKill(k.victim, k.killer);
   elimKills.length = 0;
   const lines = rm.arenas.map((a) => `${a.mapTitle}: ${a.result ? a.result.text : "-"}`);
-  sayAll("DOOM round over - " + lines.join(" | "));
+  sayAll("Round over - " + lines.join(" | "));
   cvars(["mp_ignore_round_win_conditions 0"]);
   // the CS2 round winner: the side that won more arenas (a free-for-all arena goes to its winner's side)
   const wins = { 2: 0, 3: 0 };
@@ -180,7 +180,7 @@ function csKill(victimSlot, killerSlot) {
   const died = !live(vp) || !vp.IsAlive();
   const vc = controllerOf(victimSlot), kc = killerSlot !== victimSlot ? controllerOf(killerSlot) : undefined;
   if ((vc && !vc.IsBot()) || (kc && !kc.IsBot())) guard("killlog", () => log(`CS2 kill: ${kc ? kc.GetPlayerName() + " (team " + kc.GetTeamNumber() + ", score " + kc.GetScore() + ")" : "self/world"} -> ${vc ? vc.GetPlayerName() + " (team " + vc.GetTeamNumber() + ")" : victimSlot}${died ? "" : " BLOCKED"}`));
-  if (!died) warnOnce("killblocked", "a scripted CS2 kill was blocked (plugin or damage settings?) - frags still count in Doom");
+  if (!died) warnOnce("killblocked", "a scripted CS2 kill was blocked (plugin or damage settings?) - frags still count in the arena");
   return died;
 }
 
@@ -188,7 +188,7 @@ function onDoomKill(arena, e) {
   const v = e.victim, k = e.killer;
   // obituary on the message line of the two players involved (the CS2 killfeed shows everyone)
   for (const p of [v, k]) if (p) { p.message = e.text; p.messageTime = arena.leveltime; }
-  if (CONFIG.REAL_KILLS && Instance.IsWarmupPeriod()) warnOnce("warmupkills", "warmup: Doom frags are not sent to the CS2 scoreboard until warmup ends");
+  if (CONFIG.REAL_KILLS && Instance.IsWarmupPeriod()) warnOnce("warmupkills", "warmup: frags are not sent to the CS2 scoreboard until warmup ends");
   if (!CONFIG.REAL_KILLS || realKillsBroken || Instance.IsWarmupPeriod()) {
     if (CONFIG.ADD_SCORE) {
       const c = controllerOf(k ? k.slot : v.slot);
@@ -323,7 +323,7 @@ function lobbyInfo(pe, now) {
   if (phase === "running") {
     const rem = guard("remaining", () => Instance.GetRoundRemainingTime());
     const left = rem === undefined ? 0 : Math.max(0, Math.ceil(rem - CONFIG.ROUND_SLACK));
-    info.line1 = `DOOM ROUND ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} LEFT`;
+    info.line1 = `ROUND ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} LEFT`;
     const open = rm.arenas.filter((a) => !a.finished);
     const a = rm.arenas[lobbyCycle % Math.max(1, rm.arenas.length)];
     if (a) {
@@ -337,7 +337,7 @@ function lobbyInfo(pe, now) {
     else if (pe.csTeam !== 2 && pe.csTeam !== 3) info.spec = "JOIN T OR CT TO PLAY";
     else info.spec = open.some((x) => x.mode.respawn) ? "JOINING..." : "YOU PLAY NEXT ROUND";
   } else if (phase === "ending") {
-    info.line1 = "DOOM ROUND OVER";
+    info.line1 = "ROUND OVER";
     info.center = "NEXT ROUND SOON";
   } else {
     const need = CONFIG.MIN_PLAYERS - lobbyWaiting;
@@ -346,7 +346,7 @@ function lobbyInfo(pe, now) {
       info.line2 = `NEED ${need} MORE ON T OR CT`;
     } else {
       const t = Math.max(0, Math.ceil(startAt - now));
-      info.line1 = Instance.IsFreezePeriod() ? "DOOM STARTS AFTER FREEZE TIME" : t > 0 ? `DOOM STARTS IN ${t}` : "DOOM STARTING...";
+      info.line1 = Instance.IsFreezePeriod() ? "ROUND STARTS AFTER FREEZE TIME" : t > 0 ? `ROUND STARTS IN ${t}` : "ROUND STARTING...";
     }
     if (pe.afk) info.spec = "AFK - TYPE !BACK TO PLAY";
     else if (pe.csTeam !== 2 && pe.csTeam !== 3) info.spec = "JOIN T OR CT TO PLAY";
@@ -524,7 +524,7 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
   const slot = player.GetPlayerSlot();
   const pe = rm.person(slot);
   let t = text.trim().toLowerCase();
-  if (t.startsWith("/")) t = "!" + t.slice(1);   // /doom works the same as !doom
+  if (t.startsWith("/")) t = "!" + t.slice(1);   // /help works the same as !help
   if (!player.IsBot()) sayHold();
   if (t.startsWith("!")) log(`chat command "${t}" from slot ${slot}`);
   if (t === "!spec" || t === "!spectate") {
@@ -548,7 +548,7 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
       pe.hudPos = order.includes(want) ? want : order[(order.indexOf(pe.hudPos || "centre") + 1) % order.length];
       if (pe.player) { pe.player.message = "STATUS BAR: " + ({ centre: "NORMAL", classic: "CLASSIC", small: "SMALL" })[pe.hudPos] + "  (!HUD TO CHANGE)"; pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
     }
-  } else if (t === "!doom" || t === "!fdm") {
+  } else if (["!help", "!controls", "!hm", "!doom", "!fdm"].includes(t)) {   // !doom / !fdm: old names, still work
     // shown only on the HUD of whoever typed it (CS2 scripts can't send a private chat line)
     if (pe) pe.helpUntil = Instance.GetGameTime() + CONFIG.HELP_SECONDS;
     if (pe && pe.player) { pe.player.message = "R NEXT  F PREV  E USE  SHIFT WALK"; pe.player.messageTime = (pe.arena ? pe.arena.leveltime : 0) + (CONFIG.HELP_SECONDS - 4) * TICRATE; }

@@ -63,7 +63,7 @@ for pool, ids in POOLS.items():
         tracks.append({'id': tid, 'pool': pool, 'seconds': round(seconds(src), 1), 'title': title, 'by': by})
 os.makedirs(os.path.join(OUT, '_gen'), exist_ok=True)
 json.dump(tracks, open(os.path.join(OUT, '_gen/music.json'), 'w'), indent=1)
-lines = ['FreeDM Arena music: Freedoom (FreeDM) level tracks, BSD licence like the rest of Freedoom.',
+lines = ['Hellmatch music: level tracks from Freedoom\'s FreeDM, BSD licence like the rest of Freedoom.',
          'Rendered from the original MIDI with libADLMIDI (Nuked OPL3 emulator) and the DMXOPL3 FM instrument bank',
          'by Shannon "Sneakernets" Freeman (MIT licence).', '']
 lines += ['%s  %-34s %s' % (t['id'].upper(), t['title'], t['by']) for t in tracks]

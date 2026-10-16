@@ -7,7 +7,7 @@ import os, sys, json
 import numpy as np
 from PIL import Image
 sys.path.insert(0, os.path.dirname(__file__))
-import assets
+import assets, names
 
 OUT = sys.argv[1]
 WFRAMES = json.load(open(sys.argv[2]))
@@ -222,10 +222,11 @@ rule('.XHair', width=px(7, SX), height=px(7, SY), horizontal_align='center', ver
      background_image='url("%s")' % xh_url, background_size='100% 100%', background_repeat='no-repeat', opacity='0.8')
 sbarbox = P('fdm_sbarbox', 'SBarBox', [P('fdm_team', 'Team'), P('fdm_sbar', 'SBar', sbar_children)])
 # never shown: these make CS2 compile the loading screen picture, the radar and the map icon with the HUD
-# (the game looks for map_icons/screenshots/1080p/mg_freedm_png, overheadmaps/mg_freedm_radar_psd, map_icon_mg_freedm)
-PRELOAD = (('FdmPre1', 'map_icons/screenshots/1080p/mg_freedm.png'), ('FdmPre2', 'overheadmaps/mg_freedm_radar.psd'),
-           ('FdmPre3', 'map_icons/map_icon_mg_freedm.svg'), ('FdmPre4', 'map_icons/screenshots/1080p/mg_freedm_1.png'),
-           ('FdmPre5', 'map_icons/screenshots/1080p/mg_freedm_2.png'))
+# (the game looks for map_icons/screenshots/1080p/<map>_png, overheadmaps/<map>_radar_psd, map_icon_<map>)
+M = names.MAP
+PRELOAD = (('FdmPre1', 'map_icons/screenshots/1080p/%s.png' % M), ('FdmPre2', 'overheadmaps/%s_radar.psd' % M),
+           ('FdmPre3', 'map_icons/map_icon_%s.svg' % M), ('FdmPre4', 'map_icons/screenshots/1080p/%s_1.png' % M),
+           ('FdmPre5', 'map_icons/screenshots/1080p/%s_2.png' % M))
 for cls, src in PRELOAD:
     rule('.' + cls, width='1px', height='1px', opacity='0', visibility='collapse', background_image='url("file://{images}/%s")' % src)
 preload = P(None, 'FdmPreload', [P(None, cls) for cls, _ in PRELOAD])

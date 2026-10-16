@@ -2,7 +2,7 @@
 
 usage: vmap.py <template.vmap> <out.vmap> <addon_out_dir>
 
-The template is the user's own mg_freedm.vmap. Its root, world settings and nav settings are kept;
+The template is the user's own Hammer map. Its root, world settings and nav settings are kept;
 Hammer's sample entities and the default box mesh are replaced with FreeDM content.
 """
 import os, sys, json

@@ -1,58 +1,73 @@
-"""Our own title art for the loading screens and the Workshop images: "FREEDM ARENA" in Russo One (SIL Open Font
-Licence, tools/fonts) with a fire gradient, outline and shadow, and the level renders in ref/art (made with
-preview/view.html) with Freedoom's sky behind them. Freedoom's own FreeDM logo is not used anywhere."""
+"""Our own title art for the loading screens and the Workshop images: the game's name (names.TITLE) drawn in the
+in-game HUD font (Freedoom's STCFN, the font the HUD messages use) with a fire gradient, outline, shadow and glow,
+and the level renders in ref/art (made with preview/view.html) with Freedoom's sky behind them.
+Freedoom's own logos are not used anywhere."""
 import os
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageFilter
+import assets, names
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-FONT = os.path.join(HERE, 'fonts/RussoOne-Regular.ttf')
-ART = os.path.join(HERE, '..', 'ref/art')
-FIRE = ((255, 250, 210), (255, 196, 60), (230, 90, 20), (140, 20, 8))
-WHITE = ((255, 255, 255), (225, 225, 225), (190, 190, 195))
+ART = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ref/art')
+FIRE = ((255, 244, 170), (255, 170, 40), (215, 60, 12), (120, 12, 5))
 
-def text_mask(text, size, tracking=0):
-    f = ImageFont.truetype(FONT, size)
-    W = int(sum(f.getlength(c) for c in text) + tracking * (len(text) - 1) + size)
-    im = Image.new('L', (W, size * 2), 0)
-    d = ImageDraw.Draw(im); x = size // 2
-    for c in text:
-        d.text((x, size // 4), c, font=f, fill=255); x += f.getlength(c) + tracking
-    return im.crop(im.getbbox())
+def glyph_row(text):
+    """The text in the HUD font at 1:1, RGBA, 8 pixels tall (glyphs placed like the HUD places them)."""
+    gl = [assets.graphic('STCFN%03d' % ord(c)) if 33 <= ord(c) <= 95 else None for c in text.upper()]
+    W = sum(4 if g is None else g[0].shape[1] for g in gl)
+    img = np.zeros((8, max(1, W), 4), np.uint8)
+    x = 0
+    for g in gl:
+        if g is None: x += 4; continue
+        a, (lo, to) = g
+        h, w = a.shape[:2]
+        img[max(0, -to):max(0, -to) + h, x:x + w] = a[:8]
+        x += w
+    return img
 
-def styled(text, size, tracking=0, stops=FIRE, outline=None, shadow=None):
-    outline = outline if outline is not None else max(2, size // 18)
-    shadow = shadow if shadow is not None else max(2, size // 14)
-    pad = outline + shadow * 2 + 4
-    mi = Image.fromarray(np.pad(np.array(text_mask(text, size, tracking)), pad))
-    m = np.array(mi).astype(np.float32) / 255
-    H, W = m.shape
-    ys = np.where(m.max(1) > 0.5)[0]; y0, y1 = ys[0], ys[-1]
-    t = np.clip((np.arange(H) - y0) / max(1, y1 - y0), 0, 1) * (len(stops) - 1)
-    i = np.minimum(t.astype(int), len(stops) - 2); fr = (t - i)[:, None]
-    c = np.array(stops, np.float32); row = c[i] * (1 - fr) + c[i + 1] * fr
-    fill = np.repeat(row[:, None, :], W, 1)
-    blur = np.array(mi.filter(ImageFilter.GaussianBlur(max(1, outline * 0.35)))).astype(np.float32) / 255
-    fill = np.clip(fill * (1 + np.clip(-np.gradient(blur, axis=0) * 6, -0.45, 0.6))[..., None], 0, 255)   # bevel
-    ol = np.array(mi.filter(ImageFilter.MaxFilter(outline * 2 + 1))).astype(np.float32) / 255
-    rgba = np.zeros((H, W, 4), np.float32)
-    rgba[..., :3] = fill * m[..., None] + np.array((18, 6, 4), np.float32) * (1 - m[..., None])
-    rgba[..., 3] = np.maximum(m, ol) * 255
-    out = Image.fromarray(rgba.astype(np.uint8), 'RGBA')
-    sh = Image.new('RGBA', out.size, (0, 0, 0, 0))
-    sh.putalpha(out.getchannel('A').filter(ImageFilter.GaussianBlur(shadow * 0.5)).point(lambda v: int(v * 0.8)))
-    canvas = Image.new('RGBA', out.size, (0, 0, 0, 0))
-    canvas.alpha_composite(sh); canvas.alpha_composite(sh, (shadow // 2, shadow // 2)); canvas.alpha_composite(out)
-    return canvas
+def hud_text(text, scale, tint=(235, 235, 235), shadow=True):
+    """Plain text in the HUD font, tinted, scaled with crisp pixels (same look as the loading-screen text)."""
+    g = glyph_row(text).astype(np.float32)
+    lum = g[..., :3].max(2, keepdims=True) / 255.0
+    g[..., :3] = lum * np.array(tint, np.float32)
+    im = Image.fromarray(g.clip(0, 255).astype(np.uint8), 'RGBA').resize((g.shape[1] * scale, 8 * scale), Image.NEAREST)
+    if not shadow: return im
+    out = Image.new('RGBA', (im.width + scale, im.height + scale), (0, 0, 0, 0))
+    sh = Image.new('RGBA', im.size, (0, 0, 0, 0)); sh.putalpha(im.getchannel('A'))
+    out.alpha_composite(sh, (scale, scale)); out.alpha_composite(im)
+    return out
 
 def logo(width):
-    """FREEDM over a tracked-out ARENA, scaled to the given width."""
-    a = styled('FREEDM', 200, 6)
-    b = styled('ARENA', 96, 34)
-    im = Image.new('RGBA', (max(a.width, b.width), a.height + b.height - 40), (0, 0, 0, 0))
-    im.alpha_composite(a, ((im.width - a.width) // 2, 0))
-    im.alpha_composite(b, ((im.width - b.width) // 2, a.height - 40))
-    return im.resize((width, int(im.height * width / im.width)), Image.LANCZOS)
+    """The game's name in the HUD font with a fire gradient, dark outline, shadow and glow, about `width` wide."""
+    g = glyph_row(names.TITLE)
+    lit = (g[..., 3] > 0) & (g[..., :3].max(2) >= 100)          # the font's bright strokes (not its dark rim)
+    m = np.pad(lit, 2)
+    edge = m.copy()
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            edge |= np.roll(np.roll(m, dy, 0), dx, 1)
+    H, W = m.shape
+    ys = np.where(m.any(1))[0]; y0, y1 = ys[0], ys[-1]
+    stops = np.array(FIRE, np.float32)
+    rows = np.zeros((H, 3), np.float32)
+    for y in range(H):
+        t = np.clip((y - y0) / max(1, y1 - y0), 0, 1) * (len(stops) - 1)
+        i = min(int(t), len(stops) - 2); f = t - i
+        rows[y] = stops[i] * (1 - f) + stops[i + 1] * f
+    rgba = np.zeros((H, W, 4), np.float32)
+    rgba[..., :3] = np.where(m[..., None], rows[:, None, :], np.array((14, 4, 2), np.float32))
+    rgba[..., 3] = edge * 255
+    S = max(2, round(width / W))
+    big = Image.fromarray(rgba.astype(np.uint8), 'RGBA').resize((W * S, H * S), Image.NEAREST)
+    pad = 6 * S
+    canvas = Image.new('RGBA', (big.width + pad * 2, big.height + pad * 2), (0, 0, 0, 0))
+    a = Image.new('L', canvas.size, 0); a.paste(big.getchannel('A'), (pad, pad))
+    glow = a.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(S * 2.2))
+    gl = Image.new('RGBA', canvas.size, (255, 80, 10, 0)); gl.putalpha(glow.point(lambda v: min(255, int(v * 0.9))))
+    canvas.alpha_composite(gl)
+    sh = Image.new('RGBA', canvas.size, (0, 0, 0, 0)); sh.putalpha(a.point(lambda v: int(v * 0.7)))
+    canvas.alpha_composite(sh, (S, S))
+    canvas.alpha_composite(big, (pad, pad))
+    return canvas.crop(canvas.getbbox())
 
 def scene(name, sky_path):
     """A level render (ref/art/render_<name>.png, sky drawn as magenta) with Freedoom's sky put in."""

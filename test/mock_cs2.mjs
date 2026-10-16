@@ -192,7 +192,7 @@ hooks.OnActivate();
 let rounds = 0;
 const t0 = Date.now();
 let thinkMs = 0, maxThink = 0;
-const CHATS = { 20: "!hud", 30: "/doom", 40: "/hud small", 50: "!hud", 60: "!hud center", 70: "!hud scores" };
+const CHATS = { 20: "!hud", 30: "/help", 35: "!doom", 40: "/hud small", 50: "!hud", 60: "!hud center", 70: "!hud scores" };
 while (time < SECONDS) {
   time += TICK;
   for (const [at, text] of Object.entries(CHATS)) if (Math.abs(time - +at) < TICK / 2 && players[0] && hooks.OnPlayerChat) hooks.OnPlayerChat({ player: players[0], text, team: 0 });

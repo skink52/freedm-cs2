@@ -1,21 +1,22 @@
 # Loading screen picture, radar (overview) image, overview file and map icon.
-#   panorama/images/map_icons/screenshots/1080p/mg_freedm.png   loading screen (CS2 asks for mg_freedm_png)
-#   panorama/images/overheadmaps/mg_freedm_radar.psd             radar / overview (CS2 asks for mg_freedm_radar_psd)
-#   panorama/images/map_icons/map_icon_mg_freedm.svg             map icon (CS2 asks for map_icon_mg_freedm.vsvg)
-#   game/resource/overviews/mg_freedm.txt                        where the radar sits in the world (goes in the GAME folder)
+#   panorama/images/map_icons/screenshots/1080p/<map>.png, _1, _2   loading screens (CS2 asks for <map>_png)
+#   panorama/images/overheadmaps/<map>_radar.psd                     radar / overview (CS2 asks for <map>_radar_psd)
+#   panorama/images/map_icons/map_icon_<map>.svg                     map icon (CS2 asks for map_icon_<map>.vsvg)
+#   game/resource/overviews/<map>.txt                                where the radar sits in the world (GAME folder)
+# <map> is names.MAP (mg_hellmatch).
 # Title art and backgrounds come from tools/title.py (our own, not Freedoom's FreeDM logo).
 # The HUD stylesheet refers to the three images so CS2 compiles them along with the HUD.
 import json, os, struct, sys
 import numpy as np
 from PIL import Image, ImageFilter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import assets, title
+import assets, title, names
 
 OUT = sys.argv[1]                      # out/addon (content)
 GAME_OUT = sys.argv[2]                 # out/game (files for the compiled addon folder)
-MAP = 'mg_freedm'
+MAP = names.MAP
 FD = assets.FD
-DISCLAIMER = 'UNOFFICIAL. USES FREEDOOM CONTENT UNDER ITS BSD LICENCE; NOT AFFILIATED WITH OR ENDORSED BY THE FREEDOOM PROJECT.'
+DISCLAIMER = 'USES CONTENT FROM THE FREEDOOM PROJECT (BSD LICENCE). NOT AFFILIATED WITH OR ENDORSED BY THE FREEDOOM PROJECT.'
 
 def glyph(code):
     g = assets.graphic('STCFN%03d' % code) if 33 <= code <= 95 else None
@@ -59,12 +60,12 @@ def loading_screen():
     base = Image.fromarray(arr.clip(0, 255).astype(np.uint8)).convert('RGBA')
     base.alpha_composite(title.logo(760), (100, 40))
     gold, white, grey = (255, 200, 60), (235, 235, 235), (165, 165, 165)
-    paste_text(base, 'DEATHMATCH INSIDE COUNTER-STRIKE 2', 130, 335, 4, white)
-    paste_text(base, 'AN UNOFFICIAL FAN PROJECT', 130, 385, 3, grey)
+    paste_text(base, 'DEATHMATCH INSIDE COUNTER-STRIKE 2', 130, 250, 4, white)
+    paste_text(base, 'OLD-SCHOOL FPS ACTION FOR UP TO 64 PLAYERS', 130, 300, 3, grey)
     # modes, left
     y = 590
     paste_text(base, 'EVERY ROUND', 130, y, 4, gold); y += 56
-    for line in ['FREE FOR ALL', 'TEAM DEATHMATCH', 'TEAM ELIMINATION', 'LAST MAN STANDING', '', '32 FREEDM LEVELS', 'UP TO 4 ARENAS AT ONCE']:
+    for line in ['FREE FOR ALL', 'TEAM DEATHMATCH', 'TEAM ELIMINATION', 'LAST MAN STANDING', '', '32 DEATHMATCH LEVELS', 'UP TO 4 ARENAS AT ONCE']:
         if line: paste_text(base, line, 130, y, 3, white)
         y += 38
     # controls, right
@@ -73,10 +74,10 @@ def loading_screen():
     paste_text(base, 'CONTROLS', x0, y, 5, gold); y += 66
     rows = [('W A S D', 'MOVE'), ('MOUSE', 'AIM'), ('MOUSE 1', 'FIRE'), ('E / SPACE', 'USE, OPEN DOORS'),
             ('R / MOUSE 2', 'NEXT WEAPON'), ('F', 'PREVIOUS WEAPON'), ('SHIFT', 'WALK'),
-            ('WATCHING', 'MOUSE 1/2 PLAYER, E/SPACE ARENA'), ('CHAT', '!DOOM !HUD !SPEC !AFK !BACK')]
+            ('WATCHING', 'MOUSE 1/2 PLAYER, E/SPACE ARENA'), ('CHAT', '!HELP !HUD !SPEC !AFK !BACK')]
     for a, b in rows:
         paste_text(base, a, x0, y, 3, gold); paste_text(base, b, x1, y, 3, white); y += 36
-    paste_text(base, '(/DOOM WORKS TOO)', x1, y, 3, grey)
+    paste_text(base, '(/HELP WORKS TOO)', x1, y, 3, grey)
     paste_text(base, DISCLAIMER, 130, 1040, 2, grey)
     path = os.path.join(OUT, 'panorama/images/map_icons/screenshots/1080p')
     os.makedirs(path, exist_ok=True)
@@ -93,9 +94,9 @@ def overview_screen(radar_img):
     gold, white, grey = (255, 200, 60), (235, 235, 235), (165, 165, 165)
     base.alpha_composite(title.logo(700), (70, 50))
     y = 440
-    paste_text(base, '32 FREEDM LEVELS', 110, y, 5, gold); y += 80
+    paste_text(base, '32 DEATHMATCH LEVELS', 110, y, 5, gold); y += 80
     for line in ['UP TO 64 PLAYERS, 4 ARENAS', 'SAME MODE IN EVERY ARENA', '', 'FREE FOR ALL', 'TEAM DEATHMATCH',
-                 'TEAM ELIMINATION', 'LAST MAN STANDING', '', 'RANDOM WEAPON STARTS', 'LATE JOINERS REPLACE BOTS', 'FREEDM SOUNDTRACK']:
+                 'TEAM ELIMINATION', 'LAST MAN STANDING', '', 'RANDOM WEAPON STARTS', 'LATE JOINERS REPLACE BOTS', 'RETRO FM SOUNDTRACK']:
         if line: paste_text(base, line, 110, y, 3, white)
         y += 40
     paste_text(base, DISCLAIMER, 110, 1040, 2, grey)
@@ -167,7 +168,7 @@ def icon():
            '<path fill="#ffffff" fill-rule="evenodd" d="M32 4a28 28 0 1 0 0.01 0zM32 10a22 22 0 1 1-0.01 0z"/>'
            '<rect fill="#ffffff" x="29" y="0" width="6" height="16"/><rect fill="#ffffff" x="29" y="48" width="6" height="16"/>'
            '<rect fill="#ffffff" x="0" y="29" width="16" height="6"/><rect fill="#ffffff" x="48" y="29" width="16" height="6"/>'
-           '<path fill="#ffffff" d="M22 22h20v6H28v4h12v6H28v8h-6z"/></svg>\n')
+           '<path fill="#ffffff" d="M21 21h6v8h10v-8h6v22h-6v-8H27v8h-6z"/></svg>\n')
     path = os.path.join(OUT, 'panorama/images/map_icons')
     os.makedirs(path, exist_ok=True)
     open(os.path.join(path, 'map_icon_%s.svg' % MAP), 'w', newline='\n').write(svg)

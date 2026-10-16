@@ -1,0 +1,70 @@
+[h1]Hellmatch CS2[/h1]
+Retro 90s-style deathmatch running inside Counter-Strike 2. No plugins needed: the whole game runs in the map's own script.
+
+[h2]What you get[/h2]
+[list]
+[*]32 classic deathmatch levels (FreeDM, from the Freedoom project), rebuilt for CS2
+[*]Up to 64 players across 1 to 4 arenas: one arena under 16 players, two from 16, four from 32
+[*]A new mode every round, the same in every arena: Free for All, Team Deathmatch (T = red, CT = blue), Team Elimination, Last Man Standing
+[*]Old-school movement, weapons, items, doors, lifts and teleporters, with the classic status bar
+[*]Every frag is a real CS2 kill, so the killfeed, scoreboard and rank plugins count it
+[*]Random weapon starts: now and then an arena starts everyone with a pump-action shotgun, double-barrelled shotgun, minigun, missile launcher, polaric energy weapon, ripsaw, or the SKAG 1337
+[*]Players joining mid-round take a bot's place instead of waiting
+[*]Retro FM soundtrack: longer tracks in Free for All and Team Deathmatch, short ones in one-life rounds (turn it down with your music volume)
+[/list]
+
+[h2]Controls[/h2]
+[list]
+[*]W A S D: move (always running), Shift: walk, Mouse: aim, Mouse 1: fire
+[*]E or Space: use (doors, lifts, switches)
+[*]R or Mouse 2: next weapon, F: previous weapon
+[*]While watching: Mouse 1 / Mouse 2 change player, E or Space change arena
+[/list]
+Chat commands (! or /): [b]!help[/b] controls, [b]!hud[/b] status bar size, [b]!hud scores[/b] hide the HUD while the scoreboard is open, [b]!spec[/b] watch other arenas, [b]!afk[/b] sit out, [b]!back[/b] rejoin.
+
+[h2]For server owners[/h2]
+[list]
+[*]Map name: mg_hellmatch (load it by Workshop ID: host_workshop_map 3820099820)
+[*]The map sets its own round rules while arenas run (mp_ignore_round_win_conditions, respawn on/off per mode, mp_teammates_are_enemies in free-for-all rounds), turns buying and money off, and disables the radar. All of this can be switched off with APPLY_CVARS in the script.
+[*]Plugins that can get in the way: AFK managers, no-respawn plugins, spawn protection and teamkill punishment.
+[*]CS2 bots play using the game's own bot AI; bot_quota fills empty slots.
+[/list]
+
+[h2]Credits[/h2]
+Levels, textures, sprites, sounds and music come from the Freedoom project (freedoom.github.io), used under its BSD licence below.
+Music: DM05 "Music for Freedoom 9" by Jeremy "Vandalorian" Emerson; DM10 "Paranoia" and DM14 "The Heroic Battle" by Tyler "Picklehammer" P.; DM17 "Panic" by Anthony "Ajanddino" Pierce; DM21 "Friendly Fire" by Korp; DM26 "World of Pain" by J.Astartes; DM02 "Descent from Grace" by Lola "BlueWorrior" Harvey; DM23 "Shells" by Ospaggi; DM29 "SevenFour" by Ralph "Ralphis" Vickers. Rendered with libADLMIDI (Nuked OPL3) and the DMXOPL3 FM instrument bank by Shannon "Sneakernets" Freeman (MIT licence).
+The code was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52. Source: https://github.com/skink52/freedm-cs2
+
+Hellmatch is an unofficial fan project. It is not affiliated with or endorsed by the Freedoom project, id Software, Bethesda or Valve; Freedoom is named only to credit its content. (Formerly called FreeDM Arena.)
+
+[h2]Freedoom licence[/h2]
+Copyright © 2001-2024
+Contributors to the Freedoom project.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+  * Neither the name of the Freedoom project nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS
+IS” AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+For a list of contributors to the Freedoom project, see the file
+CREDITS.

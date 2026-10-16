@@ -9,7 +9,7 @@ const hudCache = new Map();   // slot -> Map(panelId -> class)
 function hud() {
   if (live(hudEnt)) return hudEnt;
   hudEnt = live(Instance.FindEntityByName(CONFIG.HUD));
-  if (!hudEnt) { warnOnce("hud", "no custom_hud_layout named " + CONFIG.HUD + " - no Doom HUD"); return hudEnt; }
+  if (!hudEnt) { warnOnce("hud", "no custom_hud_layout named " + CONFIG.HUD + " - no game HUD"); return hudEnt; }
   // a (re)found HUD entity doesn't know what we sent before: clear it and resend everything
   for (const slot of hudCache.keys()) { try { hudEnt.ResetForPlayer(slot); } catch (err) { /* ignore */ } }
   hudCache.clear();

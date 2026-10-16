@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------- small helpers
-function log(msg) { Instance.Msg("[freedm] " + msg); }
+function log(msg) { Instance.Msg("[hellmatch] " + msg); }
 function dlog(msg) { if (CONFIG.DEBUG) log(msg); }
 const warned = new Set();
 function warnOnce(key, msg) { if (warned.has(key)) return; warned.add(key); log("WARNING: " + msg); }

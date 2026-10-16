@@ -32,17 +32,18 @@ mkdir -p build && python3 -I tools/vmf.py out/addon
 # (moondomes + vis hints) is layered on. CURRENT_VMAP = the map as last saved by Hammer (keeps hand edits).
 TEMPLATE=${FDM_TEMPLATE:-ref/mg_freedm_template.vmap}
 CURRENT=${FDM_CURRENT_VMAP:-}
+MAP=$(python3 -I -c "import sys; sys.path.insert(0, 'tools'); import names; print(names.MAP)")   # mg_hellmatch
 python3 -I tools/merge_snd.py ref/soundevents_addon_template.vsndevts out/addon/soundevents/soundevents_addon.vsndevts
 if [ -n "$CURRENT" ] && [ -f "$CURRENT" ]; then
-  python3 -I tools/vmap_env.py "$CURRENT" out/addon/maps/mg_freedm.vmap out/addon
+  python3 -I tools/vmap_env.py "$CURRENT" out/addon/maps/$MAP.vmap out/addon
 else
-  python3 -I tools/vmap.py "$TEMPLATE" build/mg_freedm_base.vmap out/addon
-  python3 -I tools/vmap_env.py build/mg_freedm_base.vmap out/addon/maps/mg_freedm.vmap out/addon
+  python3 -I tools/vmap.py "$TEMPLATE" build/map_base.vmap out/addon
+  python3 -I tools/vmap_env.py build/map_base.vmap out/addon/maps/$MAP.vmap out/addon
 fi
 node tools/build.mjs
-cp README_FREEDM.md TESTING_FREEDM.md out/addon/
+cp README_HELLMATCH.md TESTING_HELLMATCH.md out/addon/
 cp test/types/point_script.d.ts out/addon/maps/scripts/ 2>/dev/null || true
 cp "${FREEDOOM_DIR:-freedoom}/COPYING.adoc" out/addon/FREEDOOM_LICENSE.txt
 cp "${FREEDOOM_DIR:-freedoom}/CREDITS" out/addon/FREEDOOM_CREDITS.txt
 # the Workshop upload carries the compiled GAME folder, so the licence and credits go there too
-cp out/addon/FREEDOOM_LICENSE.txt out/addon/FREEDOOM_CREDITS.txt out/addon/MUSIC_CREDITS.txt out/game/
+cp out/addon/FREEDOOM_LICENSE.txt out/addon/FREEDOOM_CREDITS.txt out/addon/MUSIC_CREDITS.txt README_HELLMATCH.md out/game/

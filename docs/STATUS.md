@@ -1,12 +1,14 @@
-# FreeDM for CS2 — current status and handover (17 Oct 2026, 08:30 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 09:05 Adelaide)
 
 Repo: https://github.com/skink52/freedm-cs2 (source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
-Always rebuild the map from Zach's latest Hammer save: `FDM_CURRENT_VMAP=<his mg_freedm.vmap>` keeps his edits.
+Always rebuild the map from Zach's latest Hammer save: `FDM_CURRENT_VMAP=<his mg_hellmatch.vmap>` keeps his edits.
+Renamed 17 Oct 09:05: public name Hellmatch, map mg_hellmatch (tools/names.py). Internal names stay: addon folder
+mg_freedm, maps/scripts/freedm.js, panorama freedm.xml/css, fdm_* entities, models/materials/sounds under fdm/.
 
 Zach's addon: `C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\content\csgo_addons\mg_freedm`
 (PC linked to the chat). Changed files are written straight into it, only the files that changed. Zips only for bulk
-model/material updates, and zips must NEVER contain maps/mg_freedm.vmap or maps/scripts/freedm.js (that overwrote a
+model/material updates, and zips must NEVER contain maps/mg_hellmatch.vmap or maps/scripts/freedm.js (that overwrote a
 newer script once). DELIVERY CHECK: the device write copies a delayed snapshot of /mnt/user-data/outputs, so a
 write straight after `cp` can send the PREVIOUS version (happened 16 Oct: the 09:49 script landed hours late).
 Copy, wait ~20 s, write, then stage the file back and compare sha1 before telling Zach it's there.
@@ -132,7 +134,7 @@ TESTING_FREEDM.md, MUSIC_CREDITS.txt; GAME folder: MUSIC_CREDITS.txt, README_FRE
 - Kill money off: CVARS_ALWAYS adds mp_playercashawards 0, mp_teamcashawards 0, mp_startmoney 0, mp_maxmoney 0.
 - Freedoom endorsement check (Freedoom's BSD licence: keep the notice in docs; don't use the Freedoom name to
   endorse/promote): the loading screens used Freedoom's own FreeDM logo and title-screen art - replaced by our own
-  title (tools/title.py: Russo One font, OFL, in tools/fonts) over a level render (ref/art/render_*.png, made with
+  title (tools/title.py; Russo One at first, replaced 09:05 by the in-game HUD font) over a level render (ref/art/render_*.png, made with
   preview/view.html, which now takes w/h/nearest/clear and marine skins). Footer on both screens: "UNOFFICIAL. USES
   FREEDOOM CONTENT UNDER ITS BSD LICENCE; NOT AFFILIATED WITH OR ENDORSED BY THE FREEDOOM PROJECT." README_FREEDM.md
   says the same. Licence + credits + music credits now copied into out/game (shipped in the Workshop upload).
@@ -142,12 +144,41 @@ TESTING_FREEDM.md, MUSIC_CREDITS.txt; GAME folder: MUSIC_CREDITS.txt, README_FRE
 - Workshop images: tools/workshop_art.py -> dist/workshop_square.jpg (1080x1080 thumbnail) and dist/workshop_wide.jpg
   (1920x1080 gallery, with the unofficial line), both under 1 MB, sent to Zach.
 
+## Update 17 Oct 09:05 - renamed Hellmatch CS2, lobby bhop removed, title in the in-game font
+Written and verified (sha1; PNGs by pixels, SVG by shapes): content maps/mg_hellmatch.vmap (NEW map file),
+maps/scripts/freedm.js, panorama/images/map_icons/screenshots/1080p/mg_hellmatch(.png,_1,_2), overheadmaps/
+mg_hellmatch_radar.psd, map_icons/map_icon_mg_hellmatch.svg, styles/custom_game/freedm.css (preload names),
+README_HELLMATCH.md, TESTING_HELLMATCH.md, MUSIC_CREDITS.txt; GAME folder resource/overviews/mg_hellmatch.txt,
+README_HELLMATCH.md, MUSIC_CREDITS.txt.
+- Name: Zach chose "Hellmatch CS2" (Workshop title). Map renamed mg_hellmatch so players/servers never see FreeDM.
+  Chat: "HELLMATCH: <mode> - <maps>", "Round over - ..."; lobby lines "ROUND 4:32 LEFT", "ROUND STARTS IN n";
+  console prefix [hellmatch]; help command !help (also !controls, !hm; old !doom / !fdm still work).
+  Loading screens/overview: "32 DEATHMATCH LEVELS", "RETRO FM SOUNDTRACK", "!HELP", footer "USES CONTENT FROM THE
+  FREEDOOM PROJECT (BSD LICENCE). NOT AFFILIATED WITH OR ENDORSED BY THE FREEDOOM PROJECT." Map icon: H in a crosshair.
+- Title art: Zach asked for the in-game font - "HELLMATCH" is drawn in STCFN (the HUD message font) with a fire
+  gradient, dark outline, shadow and orange glow (tools/title.py logo); Workshop taglines use the same font
+  (title.hud_text). Russo One removed from the repo.
+- Lobby bhop minigame removed (Zach: late joiners are handled by the script now). tools/strip_bhop.py (one-off) took
+  ref/mg_freedm_hammer_saved_5.vmap -> ref/mg_hellmatch_base.vmap: removed 48 bhop entities (teleports, triggers,
+  relays, sensors, hurt triggers), 57 meshes (platforms, clips, course walls, ladder, trigger leftovers, finish
+  platform), the pinv/tree props out there, a small 32-unit jump-test block by the west wall, and the
+  sv_bhop_time_window command from logic_auto. The stretched lobby room (to x=2200) is back to 1536x1536 with Zach's
+  floor texture (lobby_ceil). Kept: his lobby torches (10 smrt props), logic_auto (mp_freezetime 0, mp_roundtime 600),
+  light_environment, nav data, booth and cache rooms.
+- Zach must delete the old files (Explorer search "mg_freedm" inside both mg_freedm addon folders, files only):
+  content maps/mg_freedm.vmap (old map; keep a backup if wanted), the mg_freedm*.png / _radar.psd / map_icon svg,
+  README_FREEDM.md, TESTING_FREEDM.md; game maps/mg_freedm.vpk (+ _cameras.txt, _retakes.txt), resource/overviews/
+  mg_freedm.txt, the compiled mg_freedm* panorama images, README_FREEDM.md. Must happen before the Workshop upload,
+  or the old map ships too. Then open maps/mg_hellmatch.vmap in Hammer and do a full build.
+- Workshop: full description with the licence in docs/WORKSHOP_DESCRIPTION.txt (4.8k chars); images dist/workshop_*.jpg.
+- GitHub repo name still freedm-cs2 (rename offered, not done).
+
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
    Frags during CS2 warmup are deliberately not sent (console warning says so).
 3. Check the CS2 console at round start for "point_script ... thinking for" lines (spread out at 15:50).
-2. Zach's own map additions (triggers, teleports, trigger_hurts, meshes) were last captured in
-   ref/mg_freedm_hammer_saved_5.vmap (his 16 Oct 08:01 save); the map in his addon was regenerated from it 17 Oct 08:28.
+2. Map base: ref/mg_hellmatch_base.vmap (his 16 Oct 08:01 save minus the bhop course). From now on his Hammer saves
+   of maps/mg_hellmatch.vmap are the base (stage it, keep a copy in ref/, build with FDM_CURRENT_VMAP).
    Rebuild only from his latest Hammer save.
 
 ## Ideas / not done
@@ -168,4 +199,5 @@ TESTING_FREEDM.md, MUSIC_CREDITS.txt; GAME folder: MUSIC_CREDITS.txt, README_FRE
 Uploaded as game type Custom, map mg_freedm. Description (updated 16 Oct) includes the full Freedoom BSD licence —
 it has to, because the Workshop upload carries the compiled game folder, not the licence text files in the content
 folder (the build now also copies the licence and credits into out/game). Source repo link:
-https://github.com/skink52/freedm-cs2. Workshop title "FreeDM Arena CS2". Preview images: dist/workshop_*.jpg.
+https://github.com/skink52/freedm-cs2. Workshop title "Hellmatch CS2" (was "FreeDM Arena CS2"). Description: docs/WORKSHOP_DESCRIPTION.txt.
+Preview images: dist/workshop_*.jpg (tools/workshop_art.py).

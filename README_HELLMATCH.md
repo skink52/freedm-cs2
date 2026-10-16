@@ -1,16 +1,18 @@
-# FreeDM for CS2: setup
+# Hellmatch CS2: setup
 
-This is Freedoom's deathmatch (FreeDM, all 32 maps) rebuilt to run inside one CS2 map, with no server plugins. The whole Doom game is the cs_script `maps/scripts/freedm.js`: movement, weapons, items, doors, lifts, teleporters and frags. Every texture, sprite, sound and HUD graphic comes straight from Freedoom.
+Hellmatch is a retro 90s-style deathmatch that runs inside one CS2 map, with no server plugins. The whole game runs in the map's cs_script (`maps/scripts/freedm.js`): movement, weapons, items, doors, lifts, teleporters and frags. The levels, textures, sprites, sounds, music and status bar graphics come from the Freedoom project's FreeDM (see Credits).
+
+(Hellmatch was called "FreeDM Arena" before 17 Oct 2026. Internal file and entity names still say `freedm` / `fdm`; players never see them.)
 
 ## 1. Install
 
-The addon is `mg_freedm`. Its map `maps/mg_freedm.vmap` already contains everything: the 32 levels, door and lift props, the lobby, the booth, sounds, the script, the HUD, sky and fog. Hammer's original sample map is kept as `maps/mg_freedm_original.vmap.bak`.
+The addon folder is `mg_freedm`. Its map `maps/mg_hellmatch.vmap` already contains everything: the 32 levels, door and lift props, the lobby, the booth, sounds, music, the script, the HUD, sky and fog.
 
 All other files (models, materials, HUD, sounds, script) go into the same addon folder, next to `maps/`.
 
 ## 2. Build the map
 
-1. Open `maps/mg_freedm.vmap` in Hammer.
+1. Open `maps/mg_hellmatch.vmap` in Hammer.
 2. Build it. The first build compiles about 1,900 materials and 480 models, so it takes a while.
 
 The map's main entities:
@@ -25,7 +27,7 @@ The map's main entities:
 | `point_soundevent` ×37 | `fdm_snd_<name>` | Sound Event Name = `fdm.<name>` |
 | `point_soundevent` ×9 | `fdm_mus_<track>` | Sound Event Name = `fdm_music.<track>` (music) |
 | `env_sky` | `fdm_sky` | `materials/fdm/sky/sky.vmat` |
-| `env_gradient_fog` | `fdm_fog` | Black, 256 to 3000 units (Doom's light fade) |
+| `env_gradient_fog` | `fdm_fog` | Black, 256 to 3000 units (the classic light fade) |
 
 Everything else is plain props:
 - `prop_static` for the 32 levels.
@@ -35,7 +37,7 @@ Everything else is plain props:
 
 ## 3. How it plays
 
-- Players spawn in the lobby. After freeze time everyone on T/CT goes into Doom arenas: one arena up to 15 players, two from 16 (8 + 8), four from 32 (8 each, up to 16 each), always split evenly. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
+- Players spawn in the lobby. After freeze time everyone on T/CT goes into the arenas: one arena up to 15 players, two from 16 (8 + 8), four from 32 (8 each, up to 16 each), always split evenly. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
 - Each round picks one mode, and every arena plays it (team modes only when every arena gets players from both sides):
 
   | Mode | Rule | Chance |
@@ -45,38 +47,38 @@ Everything else is plain props:
   | Team elimination | One life each, last team standing | 20% |
   | Last man standing | One life each, last player standing | 10% |
 
-- Every arena gets its own random map.
+- Every arena gets its own random level.
 - Each arena has a small chance (12%) of a weapon start: everyone there spawns and respawns with a pump-action shotgun, double-barrelled shotgun, minigun, missile launcher, polaric energy weapon, ripsaw or (rarely) the SKAG 1337, plus extra ammo, as well as the pistol.
 - When the first arena finishes, the others have 2 more minutes; then the leader wins.
 - Someone joining mid-round goes into an arena with room; if every arena is full (or it is a one-life round) they take a bot's place, keeping the bot's team.
 - Every frag is a real CS2 kill, credited to the killer, so the killfeed, scoreboard and rank plugins count it.
-  - In respawn modes the CS2 kill happens about 1 second after the Doom death, and CS2 respawns the player.
+  - In respawn modes the CS2 kill happens about 1 second after the arena death, and CS2 respawns the player.
   - In elimination modes the kills are applied when the round ends, so eliminated players can keep watching.
 - When an arena finishes, its players watch the arenas still fighting. Mouse 1 / mouse 2 change player, E or Space changes arena.
 - The CS2 round ends when every arena is done, or after 10 minutes.
-- Music: FreeDM's own soundtrack, played one track after another while a round runs. Free for all and team deathmatch rounds play longer tracks, one-life rounds play short ones. Everyone hears the same track; each player can turn it down with their own music volume (`snd_musicvolume` in the console).
+- Music: the levels' own soundtrack, played one track after another while a round runs. Free for all and team deathmatch rounds play longer tracks, one-life rounds play short ones. Everyone hears the same track; each player can turn it down with their own music volume (`snd_musicvolume` in the console).
 - AFK: after 20 seconds idle you get a warning. At 30 seconds you are moved to spectating and skipped next round until you press a key or type `!back`. Both notices show on that player's own screen, not in chat.
-- CS2 bots on the server play using the Doom bot AI. `bot_quota 6` fills a test server.
+- CS2 bots on the server play using the game's own bot AI. `bot_quota 6` fills a test server.
 
 ## Controls
 
-| Key | Doom action |
+| Key | Action |
 |---|---|
 | W A S D | move (always running) |
 | Shift | walk |
-| Mouse | turn and aim. Autoaim works like Doom; with no target the shot follows your crosshair up and down |
+| Mouse | turn and aim. Old-school autoaim; with no target the shot follows your crosshair up and down |
 | Mouse 1 | fire |
 | E or Space | use (doors, lifts, switches) |
 | R or Mouse 2 | next weapon |
 | F (inspect) | previous weapon |
 
-Chat (`!` or `/`): `!doom` (controls, shown on your own screen), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small), `!hud scores` (hide the Doom HUD while the scoreboard is open; off by default).
+Chat (`!` or `/`): `!help` (controls, shown on your own screen; `!controls` and `!hm` work too), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small), `!hud scores` (hide the game HUD while the scoreboard is open; off by default).
 
 Frags during CS2 warmup are not sent to the scoreboard.
 
 ## Settings
 
-Open `maps/scripts/freedm.js` and search for `const CONFIG`. The top of that block has the frag limits, mode chances, round length, kill-credit options, AFK times, bot skill, and whether the map sets server cvars (`APPLY_CVARS`).
+Open `maps/scripts/freedm.js` and search for `const CONFIG`. The top of that block has the frag limits, mode chances, round length, kill-credit options, AFK times, bot skill, music on/off, and whether the map sets server cvars (`APPLY_CVARS`).
 
 When `APPLY_CVARS` is on, the map sets these:
 - `mp_ignore_round_win_conditions` while arenas are running.
@@ -87,8 +89,8 @@ When `APPLY_CVARS` is on, the map sets these:
 
 ## Credits
 
-FreeDM Arena is an unofficial fan project. It is not affiliated with or endorsed by the Freedoom project, id Software, Bethesda or Valve; Freedoom is named only to credit its content.
+Hellmatch is an unofficial fan project. It is not affiliated with or endorsed by the Freedoom project, id Software, Bethesda or Valve; Freedoom is named only to credit its content.
 
 The code (the cs_script and the build tools) was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52.
 
-All game content is from Freedoom (freedoom.github.io, BSD-licensed): FreeDM levels, textures, sprites, sounds, music and graphics. The music is rendered from Freedoom's MIDI files with an OPL3 FM synth and the DMXOPL3 instrument bank (MIT licence); track titles and composers are in `MUSIC_CREDITS.txt`. The game code is a fresh implementation of Doom's rules in cs_script.
+All game content is from the Freedoom project (freedoom.github.io, BSD licence, see `FREEDOOM_LICENSE.txt` and `FREEDOOM_CREDITS.txt`): the FreeDM levels, textures, sprites, sounds, music and graphics. The music is rendered from Freedoom's MIDI files with an OPL3 FM synth and the DMXOPL3 instrument bank (MIT licence); track titles and composers are in `MUSIC_CREDITS.txt`. The game rules are a fresh implementation in cs_script.
