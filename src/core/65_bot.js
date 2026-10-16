@@ -152,19 +152,47 @@ function botThink(arena, p) {
     if ((arena.leveltime % 40) === 0) b.strafe = P_Random() & 1 ? 1 : -1;
     cmd.sidemove = 40 * b.strafe;
   } else {
-    // hunt: path towards the nearest enemy through the sector graph, otherwise towards an item/start
-    if ((arena.leveltime % 17) === (p.slot % 17)) {
-      let hunt = null, hd = Infinity;
+    // hunt: path towards the nearest enemy we can actually reach (a route through the sector graph, or in plain
+    // sight in the same sector); otherwise towards an item/start. Walking straight at someone behind a wall gets
+    // two bots stuck either side of it.
+    if ((arena.leveltime % 17) === (p.slot % 17) && !(b.unstickUntil > arena.leveltime)) {
+      b.avoid = b.avoid || new Map();
+      const enemies = [];
       for (const q of arena.players.values()) {
         if (q === p || q.spectating || q.playerstate !== 'live' || !q.mo) continue;
         if (arena.teamsActive && q.team === p.team) continue;
-        const d = Math.hypot(q.mo.x - mo.x, q.mo.y - mo.y);
-        if (d < hd) { hd = d; hunt = q; }
+        if ((b.avoid.get(q.slot) || 0) > arena.leveltime) continue;
+        enemies.push({ q, d: Math.hypot(q.mo.x - mo.x, q.mo.y - mo.y) });
       }
-      const wantHunt = hunt && (!b.goal || b.goal.isStart || P_Random() < 96 || !arena.mode || !arena.mode.respawn);
-      const tgt = wantHunt ? hunt.mo : (b.goal && !b.goal.removed ? b.goal : null);
-      b.portal = tgt ? arena.run(() => navNext(arena.level, mo.x, mo.y, tgt.x, tgt.y)) : null;
+      enemies.sort((x, y) => x.d - y.d);
+      const route = (tx, ty, tmo) => arena.run(() => {
+        const same = arena.level.sectorAt(tx, ty) === arena.level.sectorAt(mo.x, mo.y);
+        if (same) return checkSight(mo, tmo || { x: tx, y: ty, z: mo.z, height: 56 }) ? { portal: null } : null;
+        const e = navNext(arena.level, mo.x, mo.y, tx, ty);
+        return e ? { portal: e } : null;
+      });
+      let tgt = null, r = null;
+      const wantHunt = enemies.length && (!b.goal || b.goal.isStart || P_Random() < 96 || !arena.mode || !arena.mode.respawn);
+      if (wantHunt) {
+        for (const { q } of enemies.slice(0, 3)) {
+          r = route(q.mo.x, q.mo.y, q.mo);
+          if (r) { tgt = q.mo; break; }
+          b.avoid.set(q.slot, arena.leveltime + 3 * TICRATE);
+        }
+      }
+      if (!tgt && b.goal && !b.goal.removed) { r = route(b.goal.x, b.goal.y, b.goal.isStart ? null : b.goal); if (r) tgt = b.goal; else b.goal = null; }
+      if (!tgt) {
+        // nothing to chase or pick up: roam to a reachable deathmatch start elsewhere on the map
+        const starts = arena.dmstarts.filter((st) => Math.hypot(st.x - mo.x, st.y - mo.y) > 256);
+        for (let k = 0; k < 4 && starts.length; k++) {
+          const st = starts[(P_Random() * starts.length) >> 8];
+          r = route(st.x, st.y, null);
+          if (r) { b.goal = tgt = { x: st.x, y: st.y, z: mo.z, removed: false, isStart: true }; break; }
+        }
+      }
+      b.portal = r ? r.portal : null;
       b.huntPos = tgt ? { x: tgt.x, y: tgt.y } : null;
+      b.huntSlot = tgt && tgt.player ? tgt.player.slot : null;
     }
     cmd.forwardmove = 50;
     if (b.portal) {
@@ -191,11 +219,26 @@ function botThink(arena, p) {
       if (moved < 20) {
         b.stuck++;
         b.wanderAngle = normAngle(mo.angle + 90 + (P_Random() & 127) * (P_Random() & 1 ? 1 : -1));
+        // blocked by someone right next to us (usually a teammate in a corridor): step away from them
+        let close = null, cd = 80;
+        for (const q of arena.players.values()) {
+          if (q === p || !q.mo || q.playerstate !== 'live' || q.spectating) continue;
+          const d = Math.hypot(q.mo.x - mo.x, q.mo.y - mo.y);
+          if (d < cd) { cd = d; close = q; }
+        }
+        if (close) b.wanderAngle = normAngle(pointToAngle(close.mo.x, close.mo.y, mo.x, mo.y) + ((P_Random() & 63) - 32));
         b.goal = null;
+        // blocked for about a second: turn away for 2 s and leave whoever we were chasing alone for a while
+        if (b.stuck >= 3) {
+          b.unstickUntil = arena.leveltime + 2 * TICRATE;
+          if (b.huntSlot !== null && b.huntSlot !== undefined) (b.avoid || (b.avoid = new Map())).set(b.huntSlot, arena.leveltime + 5 * TICRATE);
+          b.huntPos = null; b.portal = null; b.stuck = 0;
+        }
       } else b.stuck = 0;
       b.lastx = mo.x; b.lasty = mo.y;
       if (b.stuck > 0) { b.portal = null; desired = b.wanderAngle; }
     }
+    if (b.unstickUntil > arena.leveltime) desired = b.wanderAngle;
   }
   const turn = angleDiff(mo.angle, desired);
   const maxTurn = 10 + 20 * skill;

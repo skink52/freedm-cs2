@@ -56,6 +56,9 @@ def P(id_=None, cls=None, children=None):
 rule('.FdmWrap', width='100%', height='100%')
 rule('.FdmRoot', width='100%', height='100%', visibility='collapse')
 rule('.FdmRoot.On', visibility='visible')
+# CS2 sets these classes on an ancestor panel: the Doom HUD steps aside for the scoreboard
+rule('.HUD_SCOREBOARD_VISIBLE .FdmWrap', visibility='collapse')
+rule('.HUD_ENDOFMATCH_VISIBLE .FdmWrap', visibility='collapse')
 # lobby: only the text lines
 rule('.FdmRoot.Lobby', visibility='visible')
 for c in ('Flash', 'Wpn', 'Team', 'SBar', 'MsgLine', 'XHair'):

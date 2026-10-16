@@ -65,6 +65,29 @@ class Arena {
         if (mo.tics > 0) mo.tics = 1 + (P_Random() % mo.tics);
       }
       if (!this.dmstarts.length && this.coopStarts) this.dmstarts = this.coopStarts.slice();
+      // some starts sit exactly against a wall, which our collision counts as stuck: move them clear
+      this.dmstarts = this.dmstarts.map((s) => { const f = this.fitSpot(s.x, s.y); return f ? { x: f.x, y: f.y, angle: s.angle } : s; });
+    });
+  }
+
+  // nearest position (within maxR, same sector) where a player fits: no walls, no solid things or players
+  fitSpot(x, y, maxR = 48, avoid) {
+    return this.run(() => {
+      const sec = this.level.sectorAt(x, y);
+      const fits = (px, py) => {
+        if (avoid && avoid.some((t) => Math.abs(t.x - px) < 34 && Math.abs(t.y - py) < 34)) return false;
+        const probe = { x: px, y: py, radius: 16, height: 56, flags: MF_SOLID | MF_SHOOTABLE | MF_PICKUP, z: 0 };
+        return checkPositionProbe(probe, px, py);
+      };
+      if (fits(x, y)) return { x, y };
+      for (let r = 4; r <= maxR; r += 4) {
+        const steps = Math.max(8, Math.round(r / 3));
+        for (let k = 0; k < steps; k++) {
+          const nx = x + r * Math.cos(k * 2 * Math.PI / steps), ny = y + r * Math.sin(k * 2 * Math.PI / steps);
+          if (this.level.sectorAt(nx, ny) === sec && fits(nx, ny)) return { x: nx, y: ny };
+        }
+      }
+      return null;
     });
   }
 
@@ -124,7 +147,10 @@ class Arena {
     const pool = free.length ? free : scored;
     pool.sort((a, b) => b.near - a.near);
     const top = pool.slice(0, Math.max(1, Math.ceil(pool.length / 2)));
-    return top[(P_Random() * top.length) >> 8].s;
+    const s = top[(P_Random() * top.length) >> 8].s;
+    // never spawn inside a wall or another player: step to the nearest clear spot
+    const f = this.fitSpot(s.x, s.y, 64);
+    return f ? { x: f.x, y: f.y, angle: s.angle } : s;
   }
 
   // distinct spots for a round start; teams get starts on opposite halves when possible
@@ -144,8 +170,7 @@ class Arena {
         const t = p.team === 1 ? 1 : 0;
         const side = sides[t];
         const s = side[used[t]++ % side.length];
-        const jitter = used[t] > side.length ? 48 : 0;
-        out.set(p, { x: s.x + (jitter ? (P_Random() - 128) / 128 * jitter : 0), y: s.y, angle: s.angle, silent: true });
+        out.set(p, { x: s.x, y: s.y, angle: s.angle, silent: true });
       }
     } else {
       list.forEach((p, i) => {
@@ -153,18 +178,16 @@ class Arena {
         out.set(p, { x: s.x, y: s.y, angle: s.angle, silent: true });
       });
     }
-    // more players than starts: nudge the extra ones so they don't telefrag at the start
+    // more players than starts: put the extra ones at the nearest clear spot (checked against walls and the others)
     const taken = [];
     for (const [p, s] of out) {
-      for (let k = 0; k < 8 && taken.some((t) => Math.abs(t.x - s.x) < 34 && Math.abs(t.y - s.y) < 34); k++) {
-        const ang = (k * 45 + s.angle) * DEG;
-        const nx = s.x + 40 * Math.cos(ang), ny = s.y + 40 * Math.sin(ang);
-        const ok = this.run(() => {
-          const probe = { x: nx, y: ny, radius: 16, height: 56, flags: MF_SOLID | MF_SHOOTABLE | MF_PICKUP, z: 0 };
-          return this.level.sectorAt(nx, ny) === this.level.sectorAt(s.x, s.y) && checkPositionProbe(probe, nx, ny);
-        });
-        if (ok) { s.x = nx; s.y = ny; }
+      let f = this.fitSpot(s.x, s.y, 96, taken);
+      // no room around this start (small ledge or platform): use the nearest other start with room
+      if (!f) {
+        const others = this.dmstarts.slice().sort((a, b) => Math.hypot(a.x - s.x, a.y - s.y) - Math.hypot(b.x - s.x, b.y - s.y));
+        for (const o of others) { f = this.fitSpot(o.x, o.y, 96, taken); if (f) { s.angle = o.angle; break; } }
       }
+      if (f) { s.x = f.x; s.y = f.y; }
       taken.push(s);
     }
     return out;

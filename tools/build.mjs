@@ -6,7 +6,7 @@ const coreDir = path.join(root, 'src/core');
 const core = fs.readdirSync(coreDir).filter((f) => f.endsWith('.js')).sort().map((f) => `// ---- ${f}\n` + fs.readFileSync(path.join(coreDir, f), 'utf8')).join('\n');
 const levels = fs.readFileSync(path.join(root, 'out/addon/_gen/levels.json'), 'utf8');
 fs.mkdirSync(path.join(root, 'build'), { recursive: true });
-const testMod = core + `\nconst LEVELS = ${levels};\nmodule.exports = { LEVELS, Arena, RoundManager, DEFAULT_CFG, MT, STATES, SN, MOBJINFO, BT_ATTACK, BT_USE, arenaSizes, botThink, cycleWeapon, selectSlot, get G() { return G; } };\n`;
+const testMod = core + `\nconst LEVELS = ${levels};\nmodule.exports = { LEVELS, Arena, RoundManager, DEFAULT_CFG, MT, STATES, SN, MOBJINFO, BT_ATTACK, BT_USE, arenaSizes, botThink, cycleWeapon, selectSlot, checkPositionProbe, checkSight: typeof checkSight === 'function' ? checkSight : undefined, MF_SOLID, MF_SHOOTABLE, MF_PICKUP, get TM() { return TM; }, get G() { return G; } };\n`;
 fs.writeFileSync(path.join(root, 'build/core_test.cjs'), testMod);
 const adapterDir = path.join(root, 'src/cs2');
 if (fs.existsSync(adapterDir) && fs.existsSync(path.join(root, 'out/addon/_gen/sprite_models.json')) && fs.existsSync(path.join(root, 'build/hud_strings.json'))) {
