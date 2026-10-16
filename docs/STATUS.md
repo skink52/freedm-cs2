@@ -205,7 +205,7 @@ Same lesson as Space Racer: keep Low hints off big empty volumes.
 - Bots need a func_nav_markup WALKABLESEED volume in the lobby (present).
 
 ## Workshop
-Uploaded as game type Custom, map mg_freedm. Description (updated 16 Oct) includes the full Freedoom BSD licence —
+Uploaded as game type Custom, map mg_hellmatch. Description (updated 16 Oct) includes the full Freedoom BSD licence —
 it has to, because the Workshop upload carries the compiled game folder, not the licence text files in the content
 folder (the build now also copies the licence and credits into out/game). Source repo link:
 https://github.com/skink52/hellmatch-cs2 (was freedm-cs2). Workshop title "Hellmatch CS2" (was "FreeDM Arena CS2"). Description: docs/WORKSHOP_DESCRIPTION.txt.
