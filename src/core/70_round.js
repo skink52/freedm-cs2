@@ -309,7 +309,7 @@ class RoundManager {
       pb.arena = null; pb.player = null;
       this.spectate(pb, a);
     }
-    pe.player.message = 'YOU TOOK ' + pb.name.slice(0, 20).toUpperCase() + "'S PLACE";
+    pe.player.message = 'YOU TOOK ' + hudName(pb.name) + "'S PLACE";
     pe.player.messageTime = a.leveltime;
     this.events.push({ type: 'replaced', person: pe, bot: pb, arena: a });
     return true;

@@ -2,6 +2,14 @@
 // Part 6: Arena - one running Doom level with its own players, things and rules
 // ===================================================================================
 
+// player names as the HUD shows them: the HUD font has only A-Z, digits and some punctuation, so other characters
+// are dropped; at most HUD_NAME_MAX characters (Steam names can be 32)
+const HUD_NAME_MAX = 12;
+function hudName(name) {
+  const s = String(name || '').toUpperCase().replace(/[^\x20-\x5f]/g, '').replace(/\s+/g, ' ').trim().slice(0, HUD_NAME_MAX).trim();
+  return s || 'PLAYER';
+}
+
 const OBITS = {
   fist: '%o was punched out by %k.', berserk: '%o was ripped apart by %k\'s fists.',
   chainsaw: '%o was mowed down by %k\'s ripsaw.', pistol: '%o was tickled by %k\'s pistol.',
@@ -286,7 +294,7 @@ class Arena {
       if (self) { if (victim.team >= 0 && this.cfg.teamSuicidePenalty) this.teamScore[victim.team] = Math.max(0, this.teamScore[victim.team] - 1); }
       else if (killer.team !== victim.team && killer.team >= 0) this.teamScore[killer.team]++;
     }
-    const text = (OBITS[kind] || OBITS.world).replace('%o', victim.name).replace('%k', killer ? killer.name : '');
+    const text = (OBITS[kind] || OBITS.world).replace('%o', hudName(victim.name)).replace('%k', killer ? hudName(killer.name) : '');
     this.events.push({ type: 'kill', victim, killer: self ? null : killer, kind, text, time: this.leveltime });
   }
 }

@@ -166,15 +166,18 @@ rule('.Ch', width='0px', height=px(8, SY), background_size='100% 100%', backgrou
 rule('.Ch.csp', width=px(4, SX))
 rule('.Big .Ch', height=px(16, SY))
 rule('.Big .Ch.csp', width=px(8, SX))
+GLYPH_W = {}
 for code in list(range(33, 96)):
     g = assets.graphic('STCFN%03d' % code)
     if g is None: continue
     rgba, (lo, to) = g
     h, w = rgba.shape[:2]
+    GLYPH_W[code] = w
     url = save('c%d' % code, rgba)
     rule('.Ch.c%d' % code, width=px(w, SX), height=px(h, SY), background_image='url("%s")' % url, margin_top=px(-to, SY) if to else '0px')
     rule('.Big .Ch.c%d' % code, width=px(w * 2, SX), height=px(h * 2, SY))
 
+json.dump(GLYPH_W, open(os.path.join(os.path.dirname(sys.argv[2]), 'hud_glyph_w.json'), 'w'))
 STRINGS = json.load(open(os.path.join(os.path.dirname(sys.argv[2]), 'hud_strings.json')))
 rule('.TImg', width='0px', height=px(8, SY), background_size='100% 100%', background_repeat='no-repeat')
 rule('.Big .TImg', height=px(16, SY))
@@ -197,6 +200,7 @@ def line(prefix, n, cls):
     return P(None, 'Line ' + cls, [P(prefix + 'img', 'TImg')] + [P(prefix + str(i), 'Ch') for i in range(n)])
 
 rule('.MsgLine', margin_left=px(1, SX), margin_top=px(1, SY))
+rule('.MsgLine2', margin_top=px(10, SY))          # second line for long messages (the script wraps them)
 rule('.CtrLine', horizontal_align='center', margin_top=px(60, SY))
 rule('.InfLine1', horizontal_align='right', margin_right=px(2, SX), margin_top=px(10, SY))
 rule('.InfLine2', horizontal_align='right', margin_right=px(2, SX), margin_top=px(19, SY))
@@ -207,7 +211,8 @@ rule('.Team.teamblue', background_color='#3c5affcc')
 
 screen = P('fdm_screen', 'Screen', [
     P('fdm_wpn', 'Wpn', [P('fdm_wbob', 'WBob', [P('fdm_wspr', 'WSpr'), P('fdm_wflash', 'WSpr')])]),
-    line('fdm_msg', 40, 'MsgLine'),
+    line('fdm_msg', 56, 'MsgLine'),
+    line('fdm_msgb', 56, 'MsgLine MsgLine2'),
     line('fdm_ctr', 24, 'CtrLine Big'),
     line('fdm_inf1_', 32, 'InfLine1'),
     line('fdm_inf2_', 32, 'InfLine2'),

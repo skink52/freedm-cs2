@@ -3,7 +3,8 @@
 ## Update - 17 Oct: FreeDM Arena is now Hellmatch
 - New name: Hellmatch. The map is now mg_hellmatch, with a new title, map icon and loading screens. Servers that load it by Workshop ID don't need to change anything.
 - Music: the levels' own soundtrack plays during rounds, with longer tracks in free for all and team deathmatch and short ones in one-life rounds. Turn it down with your music volume.
-- Fixed: you could see through walls by running up against them.
+- Fixed: you could see through walls by running up against them, including raised ledges, pillars and closed doors.
+- Kill messages at the top no longer get cut off: long ones wrap onto a second line. Player names on the game HUD are shortened to 12 characters (chat and the scoreboard still show full names).
 - No more money for kills (nothing can be bought anyway).
 - The lobby bhop course is gone: it was there for late joiners, who now take a bot's place instead of waiting.
 - !help shows the controls (!doom still works).

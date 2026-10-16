@@ -249,7 +249,7 @@ function handleRoundEvents() {
   for (const e of rm.events) {
     switch (e.type) {
       case "arenaEnd":
-        centerMsgs.set(e.arena, { text: e.result.text, until: Instance.GetGameTime() + 4 });
+        centerMsgs.set(e.arena, { text: hudResult(e.result), until: Instance.GetGameTime() + 4 });
         sayAll(`${e.arena.mapTitle}: ${e.result.text}`);
         break;
       case "afkWarn":
@@ -299,17 +299,17 @@ function infoFor(pe, now) {
   } else {
     let best = null;
     for (const p of a.players.values()) if (!best || p.frags > best.frags) best = p;
-    if (best) line2 = `LEADER ${best.name.slice(0, 16)} ${best.frags}`;
+    if (best) line2 = `LEADER ${hudName(best.name)} ${best.frags}`;
   }
   let center = "";
   const cm = centerMsgs.get(a);
   if (a.countdown > 0) center = String(Math.ceil(a.countdown / TICRATE));
   else if (cm && now < cm.until) center = cm.text;
-  else if (a.finished && a.result) center = a.result.text;
+  else if (a.finished && a.result) center = hudResult(a.result);
   let spec = "";
   if (pe.status === "spectating" && pe.spec) {
     const t = a.players.get(pe.spec.target);
-    spec = t ? "SPECTATING " + t.name.slice(0, 20) : "SPECTATING";
+    spec = t ? "SPECTATING " + hudName(t.name) : "SPECTATING";
   } else if (pe.player && pe.player.playerstate === "dead" && a.mode.respawn) spec = "RESPAWNING...";
   if (pe.afk) spec = "AFK - TYPE !BACK TO PLAY";
   else if (a.countdown > 0 && a.loadout) spec = LOADOUTS[a.loadout].name;
@@ -328,7 +328,7 @@ function lobbyInfo(pe, now) {
     const a = rm.arenas[lobbyCycle % Math.max(1, rm.arenas.length)];
     if (a) {
       let s;
-      if (a.finished) s = a.result ? a.result.text : "FINISHED";
+      if (a.finished) s = a.result ? hudResult(a.result) : "FINISHED";
       else if (a.teamsActive && a.modeKey !== "elim") s = `RED ${a.teamScore[0]} BLUE ${a.teamScore[1]}`;
       else s = `${Array.from(a.players.values()).filter((p) => !p.spectating).length} PLAYING`;
       info.line2 = `${a.mapTitle}: ${s}`.slice(0, 32);

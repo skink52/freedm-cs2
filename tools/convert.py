@@ -344,7 +344,9 @@ def brightness(step):
 
 
 # ---------------------------------------------------------------- converter
-WALL_BACKING = 16.0    # how far behind outer walls the hidden copy sits (Doom units), at most
+WALL_BACKING = 16.0    # how far behind a wall its hidden copy sits (Doom units), at most
+STEP = 24              # a player steps up anything this high, so lower walls up to this never get pressed against
+PASS = 64              # an opening lower than this (above the floor) can't be walked under: its upper wall gets pressed against
 
 class Level:
     def __init__(self, idx, mats):
@@ -361,6 +363,7 @@ class Level:
         self.buckets = {}
         self.sec_bbox = {}
         self.backings = 0
+        self.faces = {'one-sided': [0, 0], 'lower': [0, 0], 'upper': [0, 0]}   # walls you can press against: [count, given a copy]
         # every line as a segment, for measuring the empty space behind outer walls
         V = m['verts']
         self.segs = np.array([(V[l['v1']][0], V[l['v1']][1], V[l['v2']][0], V[l['v2']][1]) for l in m['lines']], dtype=np.float64)
@@ -392,6 +395,25 @@ class Level:
         u = (qx * dy - qy * dx) / den
         hit = ok & (t > 0.01) & (u >= 0) & (u <= 1)
         return float(t[hit].min()) if hit.any() else 1e9
+
+    def backing(self, x1, y1, x2, y2, nx, ny):
+        # where a wall's hidden copy can go: (depth behind the wall, how much shorter at each end). It goes into the
+        # empty space (or the solid floor/ceiling column) behind the wall, 1.5 short of the next line; the copy and the
+        # strips joining it to the wall must not cross any other line, so at slanted corners (octagonal pillars,
+        # angled walls) it is made shorter before it is moved closer. (0, 0) = no room.
+        ln = math.hypot(x2 - x1, y2 - y1); ux, uy = (x2 - x1) / ln, (y2 - y1) / ln
+        depth = min(self.void_depth(x1 + (x2 - x1) * f - nx * 0.5, y1 + (y2 - y1) * f - ny * 0.5, -nx, -ny) for f in (0.1, 0.5, 0.9))
+        back = min(WALL_BACKING, depth - 1.5)
+        while back >= 2:
+            for inset in (0.0, back * 0.5, back, back * 2.5):
+                if ln - 2 * inset < 4: break
+                ax, ay = x1 + ux * inset - nx * back, y1 + uy * inset - ny * back
+                cx, cy = x2 - ux * inset - nx * back, y2 - uy * inset - ny * back
+                if not any(self.crosses(*seg, self._li) for seg in (
+                        (ax, ay, cx, cy), (x1 - nx * 0.5, y1 - ny * 0.5, ax, ay), (x2 - nx * 0.5, y2 - ny * 0.5, cx, cy))):
+                    return back, inset
+            back /= 2
+        return 0, 0
 
     def sky(self, sec):
         return self.m['sectors'][sec]['ctex'] == 'F_SKY1'
@@ -489,15 +511,17 @@ class Level:
         flags = l['flags']
         xoff, yoff = sd['xoff'], sd['yoff']
 
-        def quad(bucket, tex, zb, zt, top_ref, alpha=False, scroll=False, back=0.0):
+        def quad(bucket, tex, zb, zt, top_ref, alpha=False, scroll=False, back=0.0, inset=0.0):
             if zt - zb < 0.01 or tex in ('-', ''): return
             if assets.texture(tex) is None: return
             w, h = self.mats.texsize('w', tex)
             mat = self.mats.get('w', tex, lt, alpha, scroll)
-            u1 = xoff / w; u2 = (xoff + ln) / w
+            u1 = (xoff + inset) / w; u2 = (xoff + ln - inset) / w
             vb = 1 - (top_ref - zb + yoff) / h; vt = 1 - (top_ref - zt + yoff) / h
-            ox, oy = -nx * back, -ny * back
-            pts = [(x1 + ox, y1 + oy, zb, u1, vb), (x2 + ox, y2 + oy, zb, u2, vb), (x2 + ox, y2 + oy, zt, u2, vt), (x1 + ox, y1 + oy, zt, u1, vt)]
+            ux, uy = (x2 - x1) / ln, (y2 - y1) / ln
+            ax, ay = x1 + ux * inset - nx * back, y1 + uy * inset - ny * back
+            cx, cy = x2 - ux * inset - nx * back, y2 - uy * inset - ny * back
+            pts = [(ax, ay, zb, u1, vb), (cx, cy, zb, u2, vb), (cx, cy, zt, u2, vt), (ax, ay, zt, u1, vt)]
             bucket.add_poly(mat, pts, (nx, ny, 0))
 
         scroll = l['special'] == 48
@@ -511,18 +535,12 @@ class Level:
             quad(self.wall_bucket(midx, midy, sd['mid']), sd['mid'], fmin, cmax, top, scroll=scroll)
             # a copy of the wall a little way into the empty space behind it: when the camera is pressed against
             # the wall, CS2's near plane cuts the wall away and you'd look into the void; now you see this copy.
-            # It stays 1 unit short of whatever is behind (another room's wall), so it never shows from there.
-            depth = min(self.void_depth(x1 + (x2 - x1) * f - nx * 0.5, y1 + (y2 - y1) * f - ny * 0.5, -nx, -ny) for f in (0.1, 0.5, 0.9))
-            back = min(WALL_BACKING, depth - 1.5)
-            # the copy and the strip between it and the wall must not cross any other line (pillar corners etc.)
-            while back >= 2 and any(self.crosses(ax, ay, cx, cy, self._li) for ax, ay, cx, cy in (
-                    (x1 - nx * back, y1 - ny * back, x2 - nx * back, y2 - ny * back),
-                    (x1 - nx * 0.5, y1 - ny * 0.5, x1 - nx * back, y1 - ny * back),
-                    (x2 - nx * 0.5, y2 - ny * 0.5, x2 - nx * back, y2 - ny * back))):
-                back /= 2
-            if back >= 2:
-                quad(self.wall_bucket(midx, midy, sd['mid']), sd['mid'], fmin, cmax, top, scroll=scroll, back=back)
-                self.backings += 1
+            # It stays 1.5 units short of whatever is behind (another room's wall), so it never shows from there.
+            self.faces['one-sided'][0] += 1
+            back, inset = self.backing(x1, y1, x2, y2, nx, ny)
+            if back and sd['mid'] not in ('-', ''):
+                quad(self.wall_bucket(midx, midy, sd['mid']), sd['mid'], fmin, cmax, top, scroll=scroll, back=back, inset=inset)
+                self.backings += 1; self.faces['one-sided'][1] += 1
             return
         X = osd['sector']; xs_ = S[X]
         if X == Y and not (sd['mid'] not in ('-', '')):
@@ -535,6 +553,13 @@ class Level:
             b = self.bucket_for(X, 'f', midx, midy)
             if b.name.startswith('s'): b = self.wall_bucket(midx, midy, sd['lower'])
             quad(b, sd['lower'], min(depth_bottom, xs_['floor']), xs_['floor'], top, scroll=scroll)
+            # too high to step onto: same hidden copy, inside the solid column under X's floor (moves with it)
+            if X_fmax - Y_fmin > STEP and assets.texture(sd['lower']) is not None:
+                self.faces['lower'][0] += 1
+                back, inset = self.backing(x1, y1, x2, y2, nx, ny)
+                if back:
+                    quad(b, sd['lower'], min(depth_bottom, xs_['floor']), xs_['floor'], top, scroll=scroll, back=back, inset=inset)
+                    self.backings += 1; self.faces['lower'][1] += 1
         # upper: face towards Y belongs to X's ceiling column
         X_cmin, X_cmax = self.cr[X]; Y_cmin, Y_cmax = self.cr[Y]
         if X_cmin < Y_cmax and not (self.sky(X) and self.sky(Y)) and sd['upper'] not in ('-', ''):
@@ -546,6 +571,14 @@ class Level:
             b = self.bucket_for(X, 'c', midx, midy)
             if b.name.startswith('s'): b = self.wall_bucket(midx, midy, sd['upper'])
             quad(b, sd['upper'], xs_['ceil'], max(height_top, xs_['ceil']), top, scroll=scroll)
+            # too low to walk under (closed doors, pillars): hidden copy inside the solid column above X's ceiling
+            # (not under a sky, where nothing would hide it)
+            if X_cmin - Y_fmax < PASS and not self.sky(X) and assets.texture(sd['upper']) is not None:
+                self.faces['upper'][0] += 1
+                back, inset = self.backing(x1, y1, x2, y2, nx, ny)
+                if back:
+                    quad(b, sd['upper'], xs_['ceil'], max(height_top, xs_['ceil']), top, scroll=scroll, back=back, inset=inset)
+                    self.backings += 1; self.faces['upper'][1] += 1
         # middle (masked, drawn once, clipped to the opening)
         if sd['mid'] not in ('-', '') and assets.texture(sd['mid']) is not None:
             w, h = self.mats.texsize('w', sd['mid'])
@@ -647,7 +680,8 @@ if __name__ == '__main__':
         props = L.write(out, off)
         allprops += [dict(p, level=L.tag) for p in props]
         rt.append(L.runtime(off))
-        print(L.tag, "backings", L.backings, "chunks", sum(1 for p in props if not p["mover"]), "movers", sum(1 for p in props if p["mover"]),
+        print(L.tag, "backings", L.backings, ' '.join('%s %d/%d' % (k, v[1], v[0]) for k, v in L.faces.items()),
+              "chunks", sum(1 for p in props if not p["mover"]), "movers", sum(1 for p in props if p["mover"]),
               'tris', sum(p['tris'] for p in props))
     os.makedirs(os.path.join(out, '_gen'), exist_ok=True)
     json.dump(allprops, open(os.path.join(out, '_gen/props.json'), 'w'))

@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 09:05 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 10:15 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -182,6 +182,32 @@ Nothing inside the levels blocks sight (level props are not occluders), so the f
 the whole-map Lowest hint + Low over the 3 lobby rooms (4 hints). maps/mg_hellmatch.vmap re-delivered (sha1 checked).
 Same lesson as Space Racer: keep Low hints off big empty volumes.
 
+## Update 17 Oct 10:15 - kill messages cut off, see-through walls on MAP28
+Written to the addon and verified (sha1, 10 sampled): maps/scripts/freedm.js, panorama freedm.xml + freedm.css,
+253 level .smd files (models/fdm/mXX), TESTING_HELLMATCH.md. The map file is unchanged (not re-sent). Zach must
+rebuild in Hammer (the level models recompile) and fully reload.
+- Kill messages (top-left message line) were cut at 40 characters ("...SKINK52'S CHAIN"). The message line is now two
+  rows of 56 character slots (fdm_msg, fdm_msgb; tools/hud.py MsgLine2 sits 10 Doom px lower). The script splits at a
+  space so each row fits the 320-px Doom screen (30_hud.js hudWrap), using the real STCFN glyph widths that
+  tools/hud.py writes to build/hud_glyph_w.json and tools/build.mjs bakes in as HUD_GLYPH_W.
+- Names on the game HUD are cut to 12 characters (core hudName, HUD_NAME_MAX): kill messages, "YOU TOOK x'S PLACE",
+  LEADER, SPECTATING, "<name> WINS" in the centre and lobby lines. Characters the HUD font lacks are dropped (empty
+  name -> PLAYER). Chat lines, console and CS2's own killfeed/scoreboard keep the full name. Worst case (two 12-char
+  names of wide letters, longest obituary) fits in the two rows with nothing lost (mock check).
+- See-through walls, MAP28: the 00:30 fix only covered one-sided (outer) walls. MAP28's walls are mostly two-sided:
+  raised blocks, pillars and closed doors are sectors whose LOWER/UPPER faces form the wall, and those had no copy
+  (m28: 0 of 101 lower, 0 of 10 upper). tools/convert.py (Level.backing) now also backs:
+  - lower faces taller than a step (X_fmax - Y_fmin > STEP 24): copy inside the solid column under the higher floor,
+    in the same mover bucket (lifts carry it);
+  - upper faces of openings too low to walk under (X_cmin - Y_fmax < PASS 64: closed doors, low lintels): copy inside
+    the solid column above the lower ceiling; none under sky ceilings (nothing would hide it there);
+  - at slanted corners (octagonal pillars, angled walls) a copy is shortened at both ends (inset, UVs adjusted) before
+    it is moved closer, so far fewer get dropped. Walls with no texture on that face get no copy (nothing to draw).
+  Coverage, all 32 levels: one-sided 9,422/9,629, lower 2,702/2,917, upper 353/389; 12,477 copies (was 9,539).
+  m28: one-sided 113/116, lower 97/101, upper 8/10. Left uncovered: faces with no room behind them (thin sectors) or
+  whose copy would cross another line. props.json changed only in tri counts; levels.json and the vmap unchanged.
+  NOT YET TESTED IN CS2.
+
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
    Frags during CS2 warmup are deliberately not sent (console warning says so).
@@ -200,7 +226,8 @@ Same lesson as Space Racer: keep Low hints off big empty volumes.
 - `say` from a script speaks as the listen-server host and hits the chat flood limit if lines go out together.
   Scripts can't send private chat and can't hide a player's own chat line.
 - Panorama: moving a panel by changing horizontal-align through a class doesn't re-place it (transform/size changes
-  do work); keyframe names must be quoted; the root HUD panel may not have an id; HUD text lines hold 32 characters.
+  do work); keyframe names must be quoted; the root HUD panel may not have an id; HUD text lines are fixed rows of character
+  panels (32 per line; the message line 2 x 56).
 - Alpha-tested textures must be power-of-two; CS2 draws both faces of model polygons.
 - Bots need a func_nav_markup WALKABLESEED volume in the lobby (present).
 

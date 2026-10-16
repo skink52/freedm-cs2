@@ -36,6 +36,31 @@ function hudReset(slot) {
   if (h) { try { h.ResetForPlayer(slot); } catch (err) { /* ignore */ } }
 }
 
+// an arena result as the HUD shows it (short player name)
+function hudResult(r) {
+  return r.player && r.team === undefined ? hudName(r.player.name) + " WINS" : r.text;
+}
+
+// width of a text in the HUD font, in screen pixels of the 320-wide Doom screen
+function hudWidth(text) {
+  let w = 0;
+  for (let i = 0; i < text.length; i++) { const c = text.charCodeAt(i); w += c === 32 ? 4 : (HUD_GLYPH_W[c] || 4); }
+  return w;
+}
+
+// split a message into two lines at a space so each fits the screen width and the line's character slots
+function hudWrap(text, maxPx, maxChars) {
+  text = String(text || "").toUpperCase();
+  const fits = (s) => s.length <= maxChars && hudWidth(s) <= maxPx;
+  if (fits(text)) return [text, ""];
+  const words = text.split(" ");
+  let a = "";
+  while (words.length && fits(a ? a + " " + words[0] : words[0])) a = a ? a + " " + words.shift() : words.shift();
+  let b = words.join(" ");
+  while (b && !fits(b)) b = b.slice(0, -1);
+  return [a, b];
+}
+
 // Doom font text: one panel per character, classes c<ascii code>
 function hudText(slot, prefix, len, text) {
   text = String(text || "").toUpperCase();
@@ -172,7 +197,9 @@ function hudPlayer(slot, p, arena, info) {
   hudSwap(slot, "fdm_team", arena && arena.teamsActive && p.team >= 0 ? (p.team === 0 ? "teamred" : "teamblue") : null);
   // message line (4 seconds, like Doom)
   const msg = p.message && arena && arena.leveltime - p.messageTime < 4 * TICRATE ? p.message : "";
-  hudText(slot, "fdm_msg", 40, msg);
+  const [m1, m2] = hudWrap(msg, 316, 56);
+  hudText(slot, "fdm_msg", 56, m1);
+  hudText(slot, "fdm_msgb", 56, m2);
   if (info) {
     hudText(slot, "fdm_inf1_", 32, info.line1 || "");
     hudText(slot, "fdm_inf2_", 32, info.line2 || "");
