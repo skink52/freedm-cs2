@@ -34,7 +34,7 @@ Everything else is plain props:
 
 ## 3. How it plays
 
-- Players spawn in the lobby. After freeze time everyone on T/CT is split into Doom arenas: up to four, filled to 16 first, minimum 6. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
+- Players spawn in the lobby. After freeze time everyone on T/CT is split evenly into Doom arenas: up to four, 16 players each at most. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
 - Each round picks one mode, and every arena plays it (team modes only when every arena gets players from both sides):
 
   | Mode | Rule | Chance |

@@ -11,27 +11,15 @@ const MODES = {
 };
 const TEAM_NAMES = ['RED', 'BLUE'];
 
-// arena sizes: fill to 16 first, minimum 6, unless the other three arenas are full
+// arena sizes: as few arenas as fit everyone (16 each at most), with the players spread evenly so the
+// arenas are alike and finish at similar times
 function arenaSizes(n, cfg) {
-  const max = cfg.arenaMax, min = cfg.arenaMin, maxArenas = cfg.maxArenas;
+  const max = cfg.arenaMax, maxArenas = cfg.maxArenas;
   if (n <= 0) return [];
-  if (n <= max) return [n];
   const count = Math.min(maxArenas, Math.ceil(n / max));
-  const sizes = new Array(count).fill(0);
-  let left = Math.min(n, max * count);
-  for (let i = 0; i < count; i++) { sizes[i] = Math.min(max, left); left -= sizes[i]; }
-  const last = count - 1;
-  if (sizes[last] < min && count < maxArenas) {
-    // borrow from earlier arenas until the last reaches the minimum
-    for (let i = last - 1; i >= 0 && sizes[last] < min; i--) {
-      while (sizes[last] < min && sizes[i] > min) { sizes[i]--; sizes[last]++; }
-    }
-  }
-  if (sizes[last] < 2 && count > 1) {
-    // a single leftover player can't play alone: take one from the previous arena
-    sizes[last - 1]--; sizes[last]++;
-  }
-  return sizes;
+  const m = Math.min(n, max * count);
+  const base = Math.floor(m / count), extra = m % count;
+  return Array.from({ length: count }, (_, i) => base + (i < extra ? 1 : 0));
 }
 
 function shuffle(a) {

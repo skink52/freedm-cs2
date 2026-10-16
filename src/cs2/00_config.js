@@ -7,7 +7,7 @@ const CONFIG = {
   MODE_WEIGHTS: { ffa: 35, tdm: 35, elim: 20, lms: 10 },
   FFA_FRAGS: 20,                 // first to this many (scaled down for small arenas)
   TDM_FRAGS: 32,                 // team total (scaled down for small arenas)
-  ARENA_MAX: 16, ARENA_MIN: 6, MAX_ARENAS: 4,
+  ARENA_MAX: 16, ARENA_MIN: 6, MAX_ARENAS: 4,   // players are spread evenly over as few arenas as fit them (ARENA_MIN is no longer used)
   MIN_PLAYERS: 2,                // fewer than this on T/CT (bots count): no Doom round, players stay in the lobby
   ROUND_SECONDS: 600,            // the script sets the CS2 round timer to this at round start
   ELIM_SECONDS: 240,             // elimination / last man standing arenas end after this (most alive wins)
