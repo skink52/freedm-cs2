@@ -1,6 +1,6 @@
 # Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 09:05 Adelaide)
 
-Repo: https://github.com/skink52/freedm-cs2 (source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
+Repo: https://github.com/skink52/freedm-cs2, being renamed to https://github.com/skink52/hellmatch-cs2 (source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
 Always rebuild the map from Zach's latest Hammer save: `FDM_CURRENT_VMAP=<his mg_hellmatch.vmap>` keeps his edits.
 Renamed 17 Oct 09:05: public name Hellmatch, map mg_hellmatch (tools/names.py). Internal names stay: addon folder
@@ -171,7 +171,10 @@ README_HELLMATCH.md, MUSIC_CREDITS.txt.
   mg_freedm.txt, the compiled mg_freedm* panorama images, README_FREEDM.md. Must happen before the Workshop upload,
   or the old map ships too. Then open maps/mg_hellmatch.vmap in Hammer and do a full build.
 - Workshop: full description with the licence in docs/WORKSHOP_DESCRIPTION.txt (4.8k chars); images dist/workshop_*.jpg.
-- GitHub repo name still freedm-cs2 (rename offered, not done).
+- GitHub repo rename to hellmatch-cs2: Zach said yes, but the session proxy refuses repository-settings writes
+  (HTTP 403 'Repository settings writes are not permitted through this proxy'), so Zach renames it in GitHub
+  (Settings > General > Repository name) and sets the About text. Docs/description already link hellmatch-cs2.
+  After the rename: git remote set-url origin https://github.com/skink52/hellmatch-cs2 (old URL redirects meanwhile).
 
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
@@ -199,5 +202,5 @@ README_HELLMATCH.md, MUSIC_CREDITS.txt.
 Uploaded as game type Custom, map mg_freedm. Description (updated 16 Oct) includes the full Freedoom BSD licence —
 it has to, because the Workshop upload carries the compiled game folder, not the licence text files in the content
 folder (the build now also copies the licence and credits into out/game). Source repo link:
-https://github.com/skink52/freedm-cs2. Workshop title "Hellmatch CS2" (was "FreeDM Arena CS2"). Description: docs/WORKSHOP_DESCRIPTION.txt.
+https://github.com/skink52/hellmatch-cs2 (was freedm-cs2). Workshop title "Hellmatch CS2" (was "FreeDM Arena CS2"). Description: docs/WORKSHOP_DESCRIPTION.txt.
 Preview images: dist/workshop_*.jpg (tools/workshop_art.py).

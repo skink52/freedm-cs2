@@ -1,5 +1,6 @@
 [h1]Hellmatch CS2[/h1]
 Retro 90s-style deathmatch running inside Counter-Strike 2. No plugins needed: the whole game runs in the map's own script.
+To play: subscribe, then start it from Play > Workshop Maps (add bots with bot_quota), or join a community server running it.
 
 [h2]What you get[/h2]
 [list]
@@ -33,7 +34,7 @@ Chat commands (! or /): [b]!help[/b] controls, [b]!hud[/b] status bar size, [b]!
 [h2]Credits[/h2]
 Levels, textures, sprites, sounds and music come from the Freedoom project (freedoom.github.io), used under its BSD licence below.
 Music: DM05 "Music for Freedoom 9" by Jeremy "Vandalorian" Emerson; DM10 "Paranoia" and DM14 "The Heroic Battle" by Tyler "Picklehammer" P.; DM17 "Panic" by Anthony "Ajanddino" Pierce; DM21 "Friendly Fire" by Korp; DM26 "World of Pain" by J.Astartes; DM02 "Descent from Grace" by Lola "BlueWorrior" Harvey; DM23 "Shells" by Ospaggi; DM29 "SevenFour" by Ralph "Ralphis" Vickers. Rendered with libADLMIDI (Nuked OPL3) and the DMXOPL3 FM instrument bank by Shannon "Sneakernets" Freeman (MIT licence).
-The code was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52. Source: https://github.com/skink52/freedm-cs2
+The code was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52. Source: https://github.com/skink52/hellmatch-cs2
 
 Hellmatch is an unofficial fan project. It is not affiliated with or endorsed by the Freedoom project, id Software, Bethesda or Valve; Freedoom is named only to credit its content. (Formerly called FreeDM Arena.)
 
