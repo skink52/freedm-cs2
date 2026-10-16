@@ -39,13 +39,13 @@ function playerReborn(p) {
 
 // round modifier: everyone (re)spawns with this weapon as well as the fist and pistol
 const LOADOUTS = {
-  shotgun: { name: 'SHOTGUN START', weapon: WP_SHOTGUN, ammo: [50, 30, 0, 0] },
-  ssg: { name: 'SUPER SHOTGUN START', weapon: WP_SUPERSHOTGUN, ammo: [50, 30, 0, 0] },
-  chaingun: { name: 'CHAINGUN START', weapon: WP_CHAINGUN, ammo: [200, 0, 0, 0] },
-  rocket: { name: 'ROCKET LAUNCHER START', weapon: WP_MISSILE, ammo: [50, 0, 0, 25] },
-  plasma: { name: 'PLASMA RIFLE START', weapon: WP_PLASMA, ammo: [50, 0, 200, 0] },
-  chainsaw: { name: 'CHAINSAW START', weapon: WP_CHAINSAW, ammo: [50, 0, 0, 0] },
-  bfg: { name: 'BFG START', weapon: WP_BFG, ammo: [50, 0, 200, 0] },
+  shotgun: { name: 'PUMP-ACTION SHOTGUN START', weapon: WP_SHOTGUN, ammo: [50, 30, 0, 0] },
+  ssg: { name: 'DOUBLE-BARRELLED SHOTGUN START', weapon: WP_SUPERSHOTGUN, ammo: [50, 30, 0, 0] },
+  chaingun: { name: 'MINIGUN START', weapon: WP_CHAINGUN, ammo: [200, 0, 0, 0] },
+  rocket: { name: 'MISSILE LAUNCHER START', weapon: WP_MISSILE, ammo: [50, 0, 0, 25] },
+  plasma: { name: 'POLARIC ENERGY WEAPON START', weapon: WP_PLASMA, ammo: [50, 0, 200, 0] },
+  chainsaw: { name: 'RIPSAW START', weapon: WP_CHAINSAW, ammo: [50, 0, 0, 0] },
+  bfg: { name: 'SKAG 1337 START', weapon: WP_BFG, ammo: [50, 0, 200, 0] },
 };
 
 function applyLoadout(p, key) {

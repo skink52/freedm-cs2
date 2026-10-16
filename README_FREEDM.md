@@ -45,7 +45,7 @@ Everything else is plain props:
   | Last man standing | One life each, last player standing | 10% |
 
 - Every arena gets its own random map.
-- Each arena has a small chance (12%) of a weapon start: everyone there spawns and respawns with a shotgun, super shotgun, chaingun, rocket launcher, plasma rifle, chainsaw or (rarely) the BFG, plus extra ammo, as well as the pistol.
+- Each arena has a small chance (12%) of a weapon start: everyone there spawns and respawns with a pump-action shotgun, double-barrelled shotgun, minigun, missile launcher, polaric energy weapon, ripsaw or (rarely) the SKAG 1337, plus extra ammo, as well as the pistol.
 - When the first arena finishes, the others have 2 more minutes; then the leader wins.
 - Someone joining mid-round goes into an arena with room; if every arena is full (or it is a one-life round) they take a bot's place, keeping the bot's team.
 - Every frag is a real CS2 kill, credited to the killer, so the killfeed, scoreboard and rank plugins count it.
