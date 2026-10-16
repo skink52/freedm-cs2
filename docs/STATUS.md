@@ -101,6 +101,17 @@ and Panorama files recompile. Zach doesn't code: plain-language explanations, li
 - Note for tools: the output folder adds C2PA "content credentials" metadata to PNG/SVG files; pixels/shapes unchanged,
   so compare those two by content, not sha1.
 
+## Update 17 Oct 00:30 - seeing through walls when pressed against them
+Cause: the eye sits 15 units ahead of the player centre (keeps the own marine model out of view) and the player's
+collision radius is 16, so against a wall the camera is ~1 unit from it - closer than CS2's near clip plane, which
+cuts the wall away. Scripts can't change the near plane or hide a prop per player. Fix in the level meshes
+(tools/convert.py, WALL_BACKING 16): every one-sided wall gets a hidden copy up to 16 units behind it in the void
+(1.5 short of whatever is behind, shrunk/dropped if it would cross another line - checked: 9,539 copies, none
+crossing). Same unlit material, so through the clipped area you see wall. Simulated camera pressed against walls:
+see-through ~99% -> <1% (assumed near plane 4 or 7). Render-only (no physics). Model names, props and level data
+unchanged, so the map needs no edit; 233 level .smd files written to the addon (spot-checked 8 by content).
+Zach must rebuild the map in Hammer (models recompile) before uploading. Not yet tested in CS2.
+
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
    Frags during CS2 warmup are deliberately not sent (console warning says so).

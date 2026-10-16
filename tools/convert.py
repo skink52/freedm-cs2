@@ -344,6 +344,8 @@ def brightness(step):
 
 
 # ---------------------------------------------------------------- converter
+WALL_BACKING = 16.0    # how far behind outer walls the hidden copy sits (Doom units), at most
+
 class Level:
     def __init__(self, idx, mats):
         self.idx = idx
@@ -358,6 +360,38 @@ class Level:
         self.center = ((min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2)
         self.buckets = {}
         self.sec_bbox = {}
+        self.backings = 0
+        # every line as a segment, for measuring the empty space behind outer walls
+        V = m['verts']
+        self.segs = np.array([(V[l['v1']][0], V[l['v1']][1], V[l['v2']][0], V[l['v2']][1]) for l in m['lines']], dtype=np.float64)
+
+    def crosses(self, ax, ay, cx, cy, skip):
+        # does the segment (ax,ay)-(cx,cy) cross any line other than line `skip`?
+        s = self.segs
+        dx, dy = cx - ax, cy - ay
+        ex, ey = s[:, 2] - s[:, 0], s[:, 3] - s[:, 1]
+        den = dx * ey - dy * ex
+        ok = np.abs(den) > 1e-9
+        den = np.where(ok, den, 1.0)
+        qx, qy = s[:, 0] - ax, s[:, 1] - ay
+        t = (qx * ey - qy * ex) / den
+        u = (qx * dy - qy * dx) / den
+        hit = ok & (t > 1e-6) & (t < 1 - 1e-6) & (u > 1e-6) & (u < 1 - 1e-6)
+        hit[skip] = False
+        return bool(hit.any())
+
+    def void_depth(self, x, y, dx, dy):
+        # distance along (dx, dy) from (x, y) to the nearest line
+        s = self.segs
+        ex, ey = s[:, 2] - s[:, 0], s[:, 3] - s[:, 1]
+        den = dx * ey - dy * ex
+        ok = np.abs(den) > 1e-9
+        den = np.where(ok, den, 1.0)
+        qx, qy = s[:, 0] - x, s[:, 1] - y
+        t = (qx * ey - qy * ex) / den
+        u = (qx * dy - qy * dx) / den
+        hit = ok & (t > 0.01) & (u >= 0) & (u <= 1)
+        return float(t[hit].min()) if hit.any() else 1e9
 
     def sky(self, sec):
         return self.m['sectors'][sec]['ctex'] == 'F_SKY1'
@@ -433,6 +467,7 @@ class Level:
                 self.bucket_for(sec, 'c', cx, cy, s['ctex']).add_poly(mat, pts, (0, 0, -1))
         # ---- walls
         for li, l in enumerate(m['lines']):
+            self._li = li
             for side in (0, 1):
                 sd_i = l['s1'] if side == 0 else l['s2']
                 if sd_i < 0: continue
@@ -454,14 +489,15 @@ class Level:
         flags = l['flags']
         xoff, yoff = sd['xoff'], sd['yoff']
 
-        def quad(bucket, tex, zb, zt, top_ref, alpha=False, scroll=False):
+        def quad(bucket, tex, zb, zt, top_ref, alpha=False, scroll=False, back=0.0):
             if zt - zb < 0.01 or tex in ('-', ''): return
             if assets.texture(tex) is None: return
             w, h = self.mats.texsize('w', tex)
             mat = self.mats.get('w', tex, lt, alpha, scroll)
             u1 = xoff / w; u2 = (xoff + ln) / w
             vb = 1 - (top_ref - zb + yoff) / h; vt = 1 - (top_ref - zt + yoff) / h
-            pts = [(x1, y1, zb, u1, vb), (x2, y2, zb, u2, vb), (x2, y2, zt, u2, vt), (x1, y1, zt, u1, vt)]
+            ox, oy = -nx * back, -ny * back
+            pts = [(x1 + ox, y1 + oy, zb, u1, vb), (x2 + ox, y2 + oy, zb, u2, vb), (x2 + ox, y2 + oy, zt, u2, vt), (x1 + ox, y1 + oy, zt, u1, vt)]
             bucket.add_poly(mat, pts, (nx, ny, 0))
 
         scroll = l['special'] == 48
@@ -473,6 +509,20 @@ class Level:
             else:
                 top = ys['ceil']
             quad(self.wall_bucket(midx, midy, sd['mid']), sd['mid'], fmin, cmax, top, scroll=scroll)
+            # a copy of the wall a little way into the empty space behind it: when the camera is pressed against
+            # the wall, CS2's near plane cuts the wall away and you'd look into the void; now you see this copy.
+            # It stays 1 unit short of whatever is behind (another room's wall), so it never shows from there.
+            depth = min(self.void_depth(x1 + (x2 - x1) * f - nx * 0.5, y1 + (y2 - y1) * f - ny * 0.5, -nx, -ny) for f in (0.1, 0.5, 0.9))
+            back = min(WALL_BACKING, depth - 1.5)
+            # the copy and the strip between it and the wall must not cross any other line (pillar corners etc.)
+            while back >= 2 and any(self.crosses(ax, ay, cx, cy, self._li) for ax, ay, cx, cy in (
+                    (x1 - nx * back, y1 - ny * back, x2 - nx * back, y2 - ny * back),
+                    (x1 - nx * 0.5, y1 - ny * 0.5, x1 - nx * back, y1 - ny * back),
+                    (x2 - nx * 0.5, y2 - ny * 0.5, x2 - nx * back, y2 - ny * back))):
+                back /= 2
+            if back >= 2:
+                quad(self.wall_bucket(midx, midy, sd['mid']), sd['mid'], fmin, cmax, top, scroll=scroll, back=back)
+                self.backings += 1
             return
         X = osd['sector']; xs_ = S[X]
         if X == Y and not (sd['mid'] not in ('-', '')):
@@ -597,7 +647,7 @@ if __name__ == '__main__':
         props = L.write(out, off)
         allprops += [dict(p, level=L.tag) for p in props]
         rt.append(L.runtime(off))
-        print(L.tag, 'chunks', sum(1 for p in props if not p['mover']), 'movers', sum(1 for p in props if p['mover']),
+        print(L.tag, "backings", L.backings, "chunks", sum(1 for p in props if not p["mover"]), "movers", sum(1 for p in props if p["mover"]),
               'tris', sum(p['tris'] for p in props))
     os.makedirs(os.path.join(out, '_gen'), exist_ok=True)
     json.dump(allprops, open(os.path.join(out, '_gen/props.json'), 'w'))
