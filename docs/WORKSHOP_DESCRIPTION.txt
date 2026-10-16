@@ -69,3 +69,5 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 For a list of contributors to the Freedoom project, see the file
 CREDITS.
+
+(Freedoom's contributor list ships in the addon as FREEDOOM_CREDITS.txt, and is at https://github.com/freedoom/freedoom/blob/master/CREDITS.)
