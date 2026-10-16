@@ -61,6 +61,16 @@ function navNext(level, fx, fy, tx, ty) {
   const nav = buildNav(level);
   const from = level.sectorAt(fx, fy).id, to = level.sectorAt(tx, ty).id;
   if (from === to) return null;
+  // the sector graph doesn't change during a round, so each (from, to) answer is worked out once
+  const cache = level.navCache || (level.navCache = new Map());
+  const key = from * 65536 + to;
+  if (cache.has(key)) return cache.get(key);
+  const res = navSearch(level, nav, from, to, fx, fy);
+  cache.set(key, res);
+  return res;
+}
+
+function navSearch(level, nav, from, to, fx, fy) {
   const n = level.sectors.length;
   const dist = new Float64Array(n).fill(Infinity), px = new Float64Array(n), py = new Float64Array(n);
   const first = new Array(n).fill(null);

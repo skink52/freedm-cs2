@@ -84,11 +84,31 @@ class Arena {
         const steps = Math.max(8, Math.round(r / 3));
         for (let k = 0; k < steps; k++) {
           const nx = x + r * Math.cos(k * 2 * Math.PI / steps), ny = y + r * Math.sin(k * 2 * Math.PI / steps);
-          if (this.level.sectorAt(nx, ny) === sec && fits(nx, ny)) return { x: nx, y: ny };
+          // must be walkable in a straight line from the original spot: a point just behind the outer wall is
+          // "in the same sector" as far as the map tree is concerned, but it is out in the void
+          if (this.level.sectorAt(nx, ny) === sec && this.inside(nx, ny) && walkableLine(x, y, nx, ny) && fits(nx, ny)) return { x: nx, y: ny };
         }
       }
       return null;
     });
+  }
+
+  // inside the level's outline (with a small margin)
+  inside(x, y) {
+    const bb = this.level.data && this.level.data.bb;   // [minx, miny, maxx, maxy]
+    if (!bb) return true;
+    return x >= bb[0] - 8 && y >= bb[1] - 8 && x <= bb[2] + 8 && y <= bb[3] + 8;
+  }
+
+  // safety net: anyone who ends up outside the level goes back to a spawn spot
+  rescueOutside() {
+    for (const p of this.players.values()) {
+      if (!p.mo || p.mo.removed || p.playerstate !== 'live' || p.spectating) continue;
+      if (this.inside(p.mo.x, p.mo.y)) continue;
+      const s = this.pickSpawnSpot(p);
+      this.run(() => { teleportMove(p.mo, s.x, s.y); p.mo.z = p.mo.floorz; p.mo.momx = p.mo.momy = p.mo.momz = 0; p.mo.angle = s.angle; });
+      this.events.push({ type: 'teleport', player: p, angle: s.angle });
+    }
   }
 
   // ---------------------------------------------------------------- players
@@ -269,6 +289,16 @@ class Arena {
     const text = (OBITS[kind] || OBITS.world).replace('%o', victim.name).replace('%k', killer ? killer.name : '');
     this.events.push({ type: 'kill', victim, killer: self ? null : killer, kind, text, time: this.leveltime });
   }
+}
+
+function walkableLine(x1, y1, x2, y2) {
+  return pathTraverse(x1, y1, x2, y2, PT_ADDLINES, (ic) => {
+    const li = ic.line;
+    if (!li.backsector || !(li.flags & ML_TWOSIDED) || (li.flags & ML_BLOCKING)) return false;
+    const op = lineOpening(li);
+    if (op.top - op.bottom < 56) return false;
+    return Math.abs(li.frontsector.floorheight - li.backsector.floorheight) <= MAXSTEP;
+  });
 }
 
 function checkPositionProbe(probe, x, y) {

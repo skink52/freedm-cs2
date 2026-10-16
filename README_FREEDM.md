@@ -47,6 +47,7 @@ Everything else is plain props:
 - Every arena gets its own random map.
 - Each arena has a small chance (12%) of a weapon start: everyone there spawns and respawns with a shotgun, super shotgun, chaingun, rocket launcher, plasma rifle, chainsaw or (rarely) the BFG, plus extra ammo, as well as the pistol.
 - When the first arena finishes, the others have 2 more minutes; then the leader wins.
+- Someone joining mid-round goes into an arena with room; if every arena is full (or it is a one-life round) they take a bot's place, keeping the bot's team.
 - Every frag is a real CS2 kill, credited to the killer, so the killfeed, scoreboard and rank plugins count it.
   - In respawn modes the CS2 kill happens about 1 second after the Doom death, and CS2 respawns the player.
   - In elimination modes the kills are applied when the round ends, so eliminated players can keep watching.
@@ -67,7 +68,7 @@ Everything else is plain props:
 | R or Mouse 2 | next weapon |
 | F (inspect) | previous weapon |
 
-Chat (`!` or `/`): `!doom` (controls, shown on your own screen), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small).
+Chat (`!` or `/`): `!doom` (controls, shown on your own screen), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small), `!hud scores` (hide the Doom HUD while the scoreboard is open; off by default).
 
 Frags during CS2 warmup are not sent to the scoreboard.
 

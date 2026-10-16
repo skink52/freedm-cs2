@@ -28,6 +28,7 @@ function buildCfg() {
   c.finishGraceTics = CONFIG.FINISH_GRACE * TICRATE;
   c.loadoutChance = CONFIG.LOADOUT_CHANCE; c.loadouts = Object.assign({}, CONFIG.START_WEAPONS);
   c.staggerArenas = true;
+  c.replaceBots = CONFIG.REPLACE_BOTS;
   c.arenaMin = CONFIG.ARENA_MIN;
   c.arena.altdeath = CONFIG.ITEMS_RESPAWN;
   c.arena.freelookAim = CONFIG.FREELOOK_AIM;
@@ -96,7 +97,9 @@ function startDoomRound() {
   phase = "running";
   const respawn = MODES[rm.modeKey].respawn;
   cvars(["mp_ignore_round_win_conditions 1"]);
-  cvars(respawn ? CONFIG.RESPAWN_CVARS_ON : CONFIG.RESPAWN_CVARS_OFF);
+  // one-life rounds keep CS2 respawning on when bots can be replaced: Doom deaths there only reach CS2 at the end
+  // of the round, and it gives someone joining mid-round a body so they can take over a bot's marine
+  cvars(respawn || CONFIG.REPLACE_BOTS ? CONFIG.RESPAWN_CVARS_ON : CONFIG.RESPAWN_CVARS_OFF);
   // any arena without teams: same-side kills there must not count as teamkills
   cvars([rm.plan.every((it) => MODES[it.mk].teams) ? "mp_teammates_are_enemies 0" : "mp_teammates_are_enemies 1"]);
   guard("roundtime", () => Instance.SetRoundRemainingTime(CONFIG.ROUND_SECONDS + CONFIG.ROUND_SLACK));
@@ -254,6 +257,10 @@ function handleRoundEvents() {
         break;
       case "arenaBuilt":
         onArenaBuilt(e.arena);
+        break;
+      case "replaced":
+        forgetKills(e.bot.slot);
+        log(`${e.person.name} took ${e.bot.name}'s place in ${e.arena.mapTitle}`);
         break;
       case "roundOver":
         endDoomRound();
@@ -522,6 +529,12 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
     if (pe) { pe.afk = true; if (pe.status === "playing") { const a = pe.arena; rm.leaveArena(pe, "afk"); rm.spectate(pe, a); } }
   } else if (t === "!back") {
     if (pe) { pe.afk = false; rm.markActive(slot); if (pe.status === "spectating" && phase === "running") { pe.status = "none"; rm.lateJoin(pe); } }
+  } else if (t === "!hud scores" || t === "!hud scoreboard") {
+    // per player: hide the Doom HUD while the scoreboard is open
+    if (pe) {
+      pe.hideOnScores = !(pe.hideOnScores !== undefined ? pe.hideOnScores : CONFIG.HIDE_HUD_ON_SCOREBOARD);
+      if (pe.player) { pe.player.message = "HUD UNDER SCOREBOARD: " + (pe.hideOnScores ? "HIDDEN" : "SHOWN"); pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
+    }
   } else if (t === "!hud" || t.startsWith("!hud ")) {
     // status bar size for this player: 85% (default) -> classic (full size) -> small (65%)
     const order = ["centre", "classic", "small"];

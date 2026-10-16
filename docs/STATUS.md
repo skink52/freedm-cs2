@@ -1,4 +1,4 @@
-# FreeDM for CS2 — current status and handover (16 Oct 2026, 15:50 Adelaide)
+# FreeDM for CS2 — current status and handover (16 Oct 2026, 17:15 Adelaide)
 
 Repo: https://github.com/skink52/freedm-cs2 (source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -65,6 +65,36 @@ and Panorama files recompile. Zach doesn't code: plain-language explanations, li
   scoreboard incl. teamkill -1). 64 players, 700 s: kills stayed on, 0 teamkill penalties, modes consistent.
   test/sim.cjs shows rounds of ~2-6 minutes with 64 bots. Script cost ~4 ms per server tick at 64 players in Node,
   spikes up to ~50-90 ms at round start (arena build) — real CS2 cost unknown, watch "point_script thinking for".
+
+## Update 16 Oct 17:15 (script, HUD xml/css, loading/radar/icon images, README; overview txt in the GAME folder)
+- Late joiners: when no arena has room (all full, or one-life round) a human takes a CS2 bot's place
+  (RoundManager.replaceBot; REPLACE_BOTS). Respawn rounds: a dead / lowest-frag bot of the joiner's team leaves and
+  the human spawns fresh. One-life rounds: the human takes over a living bot's marine (health, weapons, spot).
+  The bot spectates. CS2 respawning now stays ON in one-life rounds when REPLACE_BOTS is on, so a joiner gets a
+  pawn (Doom deaths there only reach CS2 at round end, so nothing else changes). Console: "<name> took <bot>'s place".
+- Spawns in walls fixed: 32 of 305 deathmatch starts sat exactly against a wall (our collision = stuck); every start
+  is moved clear at level load (Arena.fitSpot), respawns step to the nearest clear spot, the unchecked team "jitter"
+  at round start is gone, crowded starts fall back to other starts. Before: 14% of spawns stuck in a 64-bot test;
+  after: 0 in ~6,500. fitSpot only accepts spots reachable in a straight line (walkableLine) inside the level
+  outline - an earlier version could pick a point behind the outer wall (void) and a marine walked out of the map.
+  Safety net: Arena.rescueOutside teleports anyone outside the level outline back to a spawn spot (every 32 tics).
+- Bots stuck either side of a wall: not the camera (bots have none; EYE_FORWARD only affects spectators watching
+  them). Cause: bots with nobody in sight walked straight at the nearest enemy when the route finder had no path
+  or the enemy was round a corner in the same sector. Now bots only hunt enemies they can reach (route, or in
+  sight), otherwise items / a random reachable start; blocked for ~1 s -> turn away 2 s and skip that enemy a few
+  seconds; blocked by a player -> step away from them. Stuck 5 s+ without a target: 79 -> ~15 per 4 rounds.
+  Route answers cached per level. Bot logic costs ~0.37 ms per tic for 64 bots (unchanged); zero without bots.
+- Loading screen + radar + icon (tools/loading.py, part of build_all.sh): FreeDM title art + logo + controls in the
+  Doom font (map_icons/screenshots/1080p/mg_freedm.png), a Doom-automap overview of all 32 levels as a flat PSD
+  (overheadmaps/mg_freedm_radar.psd), a white map icon (map_icons/map_icon_mg_freedm.svg), and
+  game/csgo_addons/mg_freedm/resource/overviews/mg_freedm.txt (pos_x -15856, pos_y 10458, scale 29.188).
+  The HUD stylesheet references the three images from hidden panels so CS2 compiles them with the HUD.
+  NOT YET VERIFIED IN CS2: check the "Failed loading resource ... overheadmaps / screenshots / map_icon" and
+  "CMapOverview::SetMap" lines are gone and the loading screen shows the picture.
+- Scoreboard: per-player option `!hud scores` hides the Doom HUD while the scoreboard (or end-of-match) is open;
+  default keeps it (HIDE_HUD_ON_SCOREBOARD false). Panel fdm_opts (class hidescores) wraps fdm_root.
+- Note for tools: the output folder adds C2PA "content credentials" metadata to PNG/SVG files; pixels/shapes unchanged,
+  so compare those two by content, not sha1.
 
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).

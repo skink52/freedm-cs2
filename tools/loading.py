@@ -1,0 +1,159 @@
+# Loading screen picture, radar (overview) image, overview file and map icon.
+#   panorama/images/map_icons/screenshots/1080p/mg_freedm.png   loading screen (CS2 asks for mg_freedm_png)
+#   panorama/images/overheadmaps/mg_freedm_radar.psd             radar / overview (CS2 asks for mg_freedm_radar_psd)
+#   panorama/images/map_icons/map_icon_mg_freedm.svg             map icon (CS2 asks for map_icon_mg_freedm.vsvg)
+#   game/resource/overviews/mg_freedm.txt                        where the radar sits in the world (goes in the GAME folder)
+# The HUD stylesheet refers to the three images so CS2 compiles them along with the HUD.
+import json, os, struct, sys
+import numpy as np
+from PIL import Image, ImageFilter
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import assets
+
+OUT = sys.argv[1]                      # out/addon (content)
+GAME_OUT = sys.argv[2]                 # out/game (files for the compiled addon folder)
+MAP = 'mg_freedm'
+FD = assets.FD
+
+def glyph(code):
+    g = assets.graphic('STCFN%03d' % code) if 33 <= code <= 95 else None
+    return g[0] if g else None
+
+def text_image(text, scale, tint=None):
+    text = text.upper()
+    gl = [glyph(ord(c)) for c in text]
+    w = sum(g.shape[1] if g is not None else 4 for g in gl)
+    img = np.zeros((8, max(1, w), 4), np.uint8)
+    x = 0
+    for g in gl:
+        if g is None: x += 4; continue
+        h, gw = g.shape[:2]
+        img[:min(8, h), x:x + gw] = g[:8]
+        x += gw
+    im = Image.fromarray(img, 'RGBA').resize((max(1, w) * scale, 8 * scale), Image.NEAREST)
+    if tint:
+        arr = np.array(im).astype(np.float32)
+        lum = arr[..., :3].max(axis=2, keepdims=True) / 255.0
+        arr[..., :3] = lum * np.array(tint, np.float32)
+        im = Image.fromarray(arr.clip(0, 255).astype(np.uint8), 'RGBA')
+    return im
+
+def paste_text(base, text, x, y, scale, tint=None, shadow=True):
+    t = text_image(text, scale, tint)
+    if shadow:
+        sh = Image.new('RGBA', t.size, (0, 0, 0, 0)); sh.putalpha(t.getchannel('A'))
+        base.alpha_composite(sh, (x + scale, y + scale))
+    base.alpha_composite(t, (x, y))
+    return t.size
+
+# ---------------------------------------------------------------- loading screen 1920x1080
+def loading_screen():
+    W, H = 1920, 1080
+    bg = Image.open(os.path.join(FD, 'graphics/titlepic/freedm_titlepic.png')).convert('RGB')
+    bg = bg.crop((0, 62, 320, 200)).resize((1920, 1080), Image.NEAREST)   # below the picture's own logo
+    bg = bg.filter(ImageFilter.GaussianBlur(4))
+    arr = np.array(bg).astype(np.float32) * 0.42
+    yy, xx = np.mgrid[0:H, 0:W]
+    vign = 1 - 0.6 * (((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / 2
+    arr *= vign[..., None]
+    base = Image.fromarray(arr.clip(0, 255).astype(np.uint8)).convert('RGBA')
+    logo = Image.open(os.path.join(FD, 'graphics/titlepic/freedm_title.png')).convert('RGBA')
+    logo = logo.resize((int(logo.width * 1.1), int(logo.height * 1.1)), Image.LANCZOS)
+    base.alpha_composite(logo, (80, 30))
+    gold, white, grey = (255, 200, 60), (235, 235, 235), (165, 165, 165)
+    paste_text(base, 'ARENA - DEATHMATCH INSIDE COUNTER-STRIKE 2', 130, 485, 4, white)
+    # modes, left
+    y = 590
+    paste_text(base, 'EVERY ROUND', 130, y, 4, gold); y += 56
+    for line in ['FREE FOR ALL', 'TEAM DEATHMATCH', 'TEAM ELIMINATION', 'LAST MAN STANDING', '', '32 FREEDM LEVELS', 'UP TO 4 ARENAS AT ONCE']:
+        if line: paste_text(base, line, 130, y, 3, white)
+        y += 38
+    # controls, right
+    base.alpha_composite(Image.new('RGBA', (1120, 470), (0, 0, 0, 175)), (760, 560))
+    x0, x1, y = 800, 1080, 590
+    paste_text(base, 'CONTROLS', x0, y, 5, gold); y += 66
+    rows = [('W A S D', 'MOVE'), ('MOUSE', 'AIM'), ('MOUSE 1', 'FIRE'), ('E / SPACE', 'USE, OPEN DOORS'),
+            ('R / MOUSE 2', 'NEXT WEAPON'), ('F', 'PREVIOUS WEAPON'), ('SHIFT', 'WALK'),
+            ('WATCHING', 'MOUSE 1/2 PLAYER, E/SPACE ARENA'), ('CHAT', '!DOOM !HUD !SPEC !AFK !BACK')]
+    for a, b in rows:
+        paste_text(base, a, x0, y, 3, gold); paste_text(base, b, x1, y, 3, white); y += 36
+    paste_text(base, '(/DOOM WORKS TOO)', x1, y, 3, grey)
+    paste_text(base, 'GAME CONTENT FROM THE FREEDOOM PROJECT (BSD LICENCE)', 130, 1040, 2, grey)
+    path = os.path.join(OUT, 'panorama/images/map_icons/screenshots/1080p')
+    os.makedirs(path, exist_ok=True)
+    base.convert('RGB').save(os.path.join(path, MAP + '.png'))
+    return base
+
+# ---------------------------------------------------------------- radar: every level as a Doom automap
+def write_psd(path, img):
+    """Flat 8-bit RGB Photoshop file (no layers, raw data): what CS2's compiler reads for *_radar_psd."""
+    arr = np.array(img.convert('RGB'))
+    h, w = arr.shape[:2]
+    with open(path, 'wb') as f:
+        f.write(b'8BPS' + struct.pack('>H6xHIIHH', 1, 3, h, w, 8, 3))
+        f.write(struct.pack('>I', 0))     # colour mode data
+        f.write(struct.pack('>I', 0))     # image resources
+        f.write(struct.pack('>I', 0))     # layer and mask info
+        f.write(struct.pack('>H', 0))     # raw image data, planar
+        for c in range(3): f.write(arr[..., c].tobytes())
+
+def radar():
+    levels = json.load(open(os.path.join(OUT, '_gen/levels.json')))
+    xs, ys = [], []
+    for L in levels:
+        bb, off = L['bb'], L['off']
+        xs += [off[0] + bb[0], off[0] + bb[2]]; ys += [off[1] + bb[1], off[1] + bb[3]]
+    margin = 256
+    minx, maxx, miny, maxy = min(xs) - margin, max(xs) + margin, min(ys) - margin, max(ys) + margin
+    size = max(maxx - minx, maxy - miny)
+    cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
+    pos_x, pos_y = cx - size / 2, cy + size / 2
+    R = 1024
+    scale = size / R
+    S = 2   # draw at 2x, then shrink for smooth lines
+    img = Image.new('RGB', (R * S, R * S), (0, 0, 0))
+    from PIL import ImageDraw
+    d = ImageDraw.Draw(img)
+    to_px = lambda x, y: ((x - pos_x) / scale * S, (pos_y - y) / scale * S)
+    for L in levels:
+        v, off, secs = L['v'], L['off'], L['s']
+        for ln in L['l']:
+            a, b, flags, special, tag, fs, bs = ln[:7]
+            x1, y1, x2, y2 = v[a * 2] + off[0], v[a * 2 + 1] + off[1], v[b * 2] + off[0], v[b * 2 + 1] + off[1]
+            if bs < 0: col = (200, 40, 40)                               # wall
+            elif secs[fs][0] != secs[bs][0]: col = (150, 110, 60)        # step / ledge
+            elif secs[fs][1] != secs[bs][1]: col = (200, 180, 60)        # ceiling change
+            else: continue
+            d.line([to_px(x1, y1), to_px(x2, y2)], fill=col, width=2 * S if bs < 0 else S)
+    img = img.resize((R, R), Image.LANCZOS).convert('RGBA')
+    for L in levels:
+        bb, off = L['bb'], L['off']
+        px, py = to_px(off[0] + (bb[0] + bb[2]) / 2, off[1] + (bb[1] + bb[3]) / 2)
+        t = text_image(L['title'], 2, (255, 255, 255))
+        img.alpha_composite(t, (int(px / S - t.width / 2), int(py / S - t.height / 2)))
+    path = os.path.join(OUT, 'panorama/images/overheadmaps')
+    os.makedirs(path, exist_ok=True)
+    write_psd(os.path.join(path, MAP + '_radar.psd'), img)
+    img.convert('RGB').save(os.path.join(OUT, '_gen', 'radar_preview.png'))
+    ov = os.path.join(GAME_OUT, 'resource/overviews')
+    os.makedirs(ov, exist_ok=True)
+    with open(os.path.join(ov, MAP + '.txt'), 'w', newline='\n') as f:
+        f.write('"%s"\n{\n\t"material"\t"overviews/%s"\n\t"pos_x"\t"%d"\n\t"pos_y"\t"%d"\n\t"scale"\t"%.3f"\n\t"rotate"\t"0"\n\t"zoom"\t"1.0"\n}\n'
+                % (MAP, MAP, round(pos_x), round(pos_y), scale))
+    return pos_x, pos_y, scale
+
+# ---------------------------------------------------------------- map icon (white, like the stock map icons)
+def icon():
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
+           '<path fill="#ffffff" fill-rule="evenodd" d="M32 4a28 28 0 1 0 0.01 0zM32 10a22 22 0 1 1-0.01 0z"/>'
+           '<rect fill="#ffffff" x="29" y="0" width="6" height="16"/><rect fill="#ffffff" x="29" y="48" width="6" height="16"/>'
+           '<rect fill="#ffffff" x="0" y="29" width="16" height="6"/><rect fill="#ffffff" x="48" y="29" width="16" height="6"/>'
+           '<path fill="#ffffff" d="M22 22h20v6H28v4h12v6H28v8h-6z"/></svg>\n')
+    path = os.path.join(OUT, 'panorama/images/map_icons')
+    os.makedirs(path, exist_ok=True)
+    open(os.path.join(path, 'map_icon_%s.svg' % MAP), 'w', newline='\n').write(svg)
+
+loading_screen()
+p = radar()
+icon()
+print('loading screen, radar (pos %.0f, %.0f, scale %.2f), icon' % p)

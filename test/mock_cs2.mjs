@@ -36,7 +36,19 @@ class Entity {
   Kill() { this.valid = false; }
   Remove() { this.valid = false; }
 }
-function check(p) { if (p && [p.x, p.y, p.z].some((v) => !Number.isFinite(v) || Math.abs(v) > 16384)) throw new Error('bad position ' + JSON.stringify(p)); }
+let badShown = 0;
+function check(p) {
+  if (p && [p.x, p.y, p.z].some((v) => !Number.isFinite(v) || Math.abs(v) > 16384)) {
+    if (OPTS.includes('dbg') && !badShown++ && ctx.__dbg) {
+      const { rm } = ctx.__dbg();
+      for (const a of rm.arenas) for (const pl of a.players.values()) if (pl.mo) {
+        const w = { x: a.level.off[0] + pl.mo.x };
+        if (Math.abs(w.x) > 16000) console.log('DBG', a.mapId, pl.name, 'slot', pl.slot, 'isBot', pl.isBot, 'doom pos', Math.round(pl.mo.x), Math.round(pl.mo.y), 'sector', a.level.sectorAt(pl.mo.x, pl.mo.y).id, 'state', pl.playerstate, 'person', pl.person && pl.person.name, pl.person && pl.person.status, 'off', a.level.off.join(','));
+      }
+    }
+    throw new Error('bad position ' + JSON.stringify(p));
+  }
+}
 
 const world = new Map();
 function addEnt(e) { world.set(e.name, e); return e; }
@@ -152,6 +164,8 @@ const api = { Instance, CSInputs, CustomCameraMode, CSMoveType, CSRoundEndReason
 
 let src = fs.readFileSync(path.join(root, 'out/addon/maps/scripts/freedm.js'), 'utf8');
 src = src.replace(/^import \{[^}]+\} from "cs_script\/point_script";/m, 'const { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, CSRoundEndReason, Entity } = __api;');
+if (OPTS.includes('elimonly')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 0, tdm: 0, elim: 100, lms: 0 }');
+src += '\nglobalThis.__dbg = () => ({ rm, views, parked });\n';
 const ctx = vm.createContext({ __api: api, console, Math, Date, JSON, Map, Set, Array, Object, String, Number, Error, Infinity, NaN });
 vm.runInContext(src, ctx, { filename: 'freedm.js' });
 
@@ -161,7 +175,7 @@ hooks.OnActivate();
 let rounds = 0;
 const t0 = Date.now();
 let thinkMs = 0, maxThink = 0;
-const CHATS = { 20: "!hud", 30: "/doom", 40: "/hud small", 50: "!hud", 60: "!hud center" };
+const CHATS = { 20: "!hud", 30: "/doom", 40: "/hud small", 50: "!hud", 60: "!hud center", 70: "!hud scores" };
 while (time < SECONDS) {
   time += TICK;
   for (const [at, text] of Object.entries(CHATS)) if (Math.abs(time - +at) < TICK / 2 && players[0] && hooks.OnPlayerChat) hooks.OnPlayerChat({ player: players[0], text, team: 0 });

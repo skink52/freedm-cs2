@@ -56,9 +56,11 @@ def P(id_=None, cls=None, children=None):
 rule('.FdmWrap', width='100%', height='100%')
 rule('.FdmRoot', width='100%', height='100%', visibility='collapse')
 rule('.FdmRoot.On', visibility='visible')
-# CS2 sets these classes on an ancestor panel: the Doom HUD steps aside for the scoreboard
-rule('.HUD_SCOREBOARD_VISIBLE .FdmWrap', visibility='collapse')
-rule('.HUD_ENDOFMATCH_VISIBLE .FdmWrap', visibility='collapse')
+# CS2 sets these classes on an ancestor panel: players who chose it (!hud scores) get the Doom HUD out of the way
+# of the scoreboard; by default it stays
+rule('.FdmOpts', width='100%', height='100%')
+rule('.HUD_SCOREBOARD_VISIBLE .FdmOpts.hidescores', visibility='collapse')
+rule('.HUD_ENDOFMATCH_VISIBLE .FdmOpts.hidescores', visibility='collapse')
 # lobby: only the text lines
 rule('.FdmRoot.Lobby', visibility='visible')
 for c in ('Flash', 'Wpn', 'Team', 'SBar', 'MsgLine', 'XHair'):
@@ -219,10 +221,17 @@ xh_url = save('xhair', xh)
 rule('.XHair', width=px(7, SX), height=px(7, SY), horizontal_align='center', vertical_align='center',
      background_image='url("%s")' % xh_url, background_size='100% 100%', background_repeat='no-repeat', opacity='0.8')
 sbarbox = P('fdm_sbarbox', 'SBarBox', [P('fdm_team', 'Team'), P('fdm_sbar', 'SBar', sbar_children)])
-root = P('fdm_root', 'FdmRoot', [P('fdm_flash', 'Flash'), screen, sbarbox])
+# never shown: these make CS2 compile the loading screen picture, the radar and the map icon with the HUD
+# (the game looks for map_icons/screenshots/1080p/mg_freedm_png, overheadmaps/mg_freedm_radar_psd, map_icon_mg_freedm)
+for cls, src in (('FdmPre1', 'map_icons/screenshots/1080p/mg_freedm.png'), ('FdmPre2', 'overheadmaps/mg_freedm_radar.psd'),
+                 ('FdmPre3', 'map_icons/map_icon_mg_freedm.svg')):
+    rule('.' + cls, width='1px', height='1px', opacity='0', visibility='collapse', background_image='url("file://{images}/%s")' % src)
+preload = P(None, 'FdmPreload', [P(None, 'FdmPre1'), P(None, 'FdmPre2'), P(None, 'FdmPre3')])
+rule('.FdmPreload', width='1px', height='1px', visibility='collapse')
+root = P('fdm_root', 'FdmRoot', [P('fdm_flash', 'Flash'), screen, sbarbox, preload])
 # the root panel may not carry an id (CustomHud validation), so fdm_root sits inside a plain full-screen panel
 doc = ('<root>\n\t<styles>\n\t\t<include src="file://{resources}/styles/custom_game/freedm.css" />\n\t</styles>\n'
-       '\t<Panel class="FdmWrap" hittest="false">\n' + root + '\n\t</Panel>\n</root>\n')
+       '\t<Panel class="FdmWrap" hittest="false">\n' + P('fdm_opts', 'FdmOpts', [root]) + '\n\t</Panel>\n</root>\n')
 os.makedirs(os.path.join(OUT, 'panorama/layout/custom_game'), exist_ok=True)
 os.makedirs(os.path.join(OUT, 'panorama/styles/custom_game'), exist_ok=True)
 open(os.path.join(OUT, 'panorama/layout/custom_game/freedm.xml'), 'w', newline='\n').write(doc)

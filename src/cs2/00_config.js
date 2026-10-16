@@ -11,6 +11,7 @@ const CONFIG = {
   MIN_PLAYERS: 2,                // fewer than this on T/CT (bots count): no Doom round, players stay in the lobby
   ROUND_SECONDS: 600,            // the script sets the CS2 round timer to this at round start
   ELIM_SECONDS: 240,             // elimination / last man standing arenas end after this (most alive wins)
+  REPLACE_BOTS: true,            // someone joining mid-round takes a bot's place when there is no free room
   FINISH_GRACE: 120,             // once the first arena finishes, the others have this many seconds left (0 = off)
   LOADOUT_CHANCE: 0.12,          // chance, per arena, of a "weapon start": everyone there (re)spawns with one of START_WEAPONS
   START_WEAPONS: { shotgun: 3, ssg: 3, chaingun: 3, rocket: 2, plasma: 2, chainsaw: 2, bfg: 1 },   // weapon: how likely
@@ -62,6 +63,7 @@ const CONFIG = {
   MAX_EFFECT_PROPS: 120,         // per arena: puffs, blood, explosions...
   MAX_SOUNDS_PER_TICK: 24,
   SPAWN_BUDGET: 20,              // new props created per server tick at most (round start creates hundreds)
+  HIDE_HUD_ON_SCOREBOARD: false,  // default for everyone; each player can switch it with !hud scores
   HUD_BUDGET: 600,               // HUD changes sent per server tick at most (the first draw for many players is spread out)
 
   // ---- entity names in the map

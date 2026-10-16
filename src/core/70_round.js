@@ -265,9 +265,53 @@ class RoundManager {
     if (pe.arena) return true;
     const cands = this.arenas.filter((a) => !a.finished && a.mode.respawn && a.players.size < this.cfg.arenaMax &&
       (!a.teamsActive || pe.csTeam === 2 || pe.csTeam === 3));
-    if (!cands.length) { this.spectate(pe); return false; }
-    cands.sort((a, b) => a.players.size - b.players.size);
-    this.joinArena(pe, cands[0], false);
+    if (cands.length) {
+      cands.sort((a, b) => a.players.size - b.players.size);
+      this.joinArena(pe, cands[0], false);
+      return true;
+    }
+    // no room (arenas full, or one-life rounds): a human takes a bot's place instead of waiting
+    if (!pe.bot && this.cfg.replaceBots !== false && this.replaceBot(pe)) return true;
+    this.spectate(pe);
+    return false;
+  }
+
+  replaceBot(pe) {
+    if (pe.csTeam !== 2 && pe.csTeam !== 3) return false;
+    const team = pe.csTeam === 3 ? 1 : 0;
+    let best = null, bestScore = Infinity;
+    for (const a of this.arenas) {
+      if (a.finished || a.countdown > 0) continue;
+      for (const p of a.players.values()) {
+        const pb = p.person;
+        if (!pb || !pb.bot || p.spectating) continue;
+        if (a.teamsActive && p.team !== team) continue;             // keep the teams even
+        if (!a.mode.respawn && p.playerstate !== 'live') continue;  // one-life rounds: take over a living bot
+        // respawn rounds: prefer a bot that is dead right now, then the one with the fewest frags
+        const score = (a.mode.respawn && p.playerstate === 'dead' ? 0 : 1000) + p.frags;
+        if (score < bestScore) { bestScore = score; best = { a, p, pb }; }
+      }
+    }
+    if (!best) return false;
+    const { a, p, pb } = best;
+    if (a.mode.respawn) {
+      a.removePlayer(pb.slot);
+      pb.arena = null; pb.player = null; pb.status = 'none';
+      this.spectate(pb, a);
+      this.joinArena(pe, a, false);
+    } else {
+      // hand the bot's living marine (health, weapons, position) to the human
+      a.players.delete(pb.slot);
+      p.slot = pe.slot; p.name = pe.name; p.person = pe; p.isBot = false; p.bot = null;
+      p.cmd.forwardmove = 0; p.cmd.sidemove = 0; p.cmd.buttons = 0;
+      a.players.set(pe.slot, p);
+      pe.arena = a; pe.player = p; pe.status = 'playing'; pe.spec = null; pe.lastActive = this.time;
+      pb.arena = null; pb.player = null;
+      this.spectate(pb, a);
+    }
+    pe.player.message = 'YOU TOOK ' + pb.name.slice(0, 20).toUpperCase() + "'S PLACE";
+    pe.player.messageTime = a.leveltime;
+    this.events.push({ type: 'replaced', person: pe, bot: pb, arena: a });
     return true;
   }
 
@@ -316,6 +360,7 @@ class RoundManager {
         if (p.frozen || a.finished) { p.cmd.forwardmove = 0; p.cmd.sidemove = 0; p.cmd.buttons = 0; }
       }
       a.tic();
+      if ((a.leveltime & 31) === 0) a.rescueOutside();
       this.arenaRules(a);
     }
     this.checkAfk();

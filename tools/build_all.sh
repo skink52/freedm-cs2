@@ -2,7 +2,7 @@
 # Rebuilds the whole addon from the Freedoom sources into out/addon
 set -e
 cd "$(dirname "$0")/.."
-rm -rf out/addon && mkdir -p out/addon/maps
+rm -rf out/addon out/game && mkdir -p out/addon/maps out/game
 python3 -I tools/convert.py out/addon            # levels -> models, materials, level data
 node tools/build.mjs                             # core test module (needed for frame lists)
 node -e "
@@ -23,6 +23,7 @@ fixed = msgs + ['FIGHT!', 'RESPAWNING...', 'SPECTATING', '1', '2', '3', 'RED TEA
 json.dump(sorted(set(s.upper() for s in fixed)), open('build/hud_strings.json', 'w'))
 PY
 python3 -I tools/hud.py out/addon build/hud_frames.json
+python3 -I tools/loading.py out/addon out/game   # loading screen, radar, overview file (out/game goes in the GAME addon folder), map icon
 python3 -I tools/extras.py out/addon SKY1
 python3 tools/lobby.py
 mkdir -p build && python3 -I tools/vmf.py out/addon

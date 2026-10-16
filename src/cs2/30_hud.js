@@ -126,8 +126,15 @@ function weaponClass(psp) {
   return "w_" + st.sprite.toLowerCase() + "_" + String.fromCharCode(97 + st.frame);
 }
 
+function hudOptions(slot) {
+  const pe = rm && rm.person(slot);
+  const hide = pe && pe.hideOnScores !== undefined ? pe.hideOnScores : CONFIG.HIDE_HUD_ON_SCOREBOARD;
+  hudSwap(slot, "fdm_opts", hide ? "hidescores" : null);
+}
+
 function hudPlayer(slot, p, arena, info) {
   hudSwap(slot, "fdm_root", "On");
+  hudOptions(slot);
   hudSwap(slot, "fdm_sbarbox", info && info.sbar && info.sbar !== "centre" ? info.sbar : null);
   // weapon sprite + flash
   const wp = p.psprites[0], fp = p.psprites[1];
@@ -181,6 +188,7 @@ function hudOff(slot) {
 // lobby: only the text lines (top right, centre, bottom)
 function hudLobby(slot, info) {
   hudSwap(slot, "fdm_root", "Lobby");
+  hudOptions(slot);
   hudText(slot, "fdm_inf1_", 32, info.line1 || "");
   hudText(slot, "fdm_inf2_", 32, info.line2 || "");
   hudText(slot, "fdm_ctr", 24, info.center || "");
