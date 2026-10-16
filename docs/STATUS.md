@@ -176,6 +176,13 @@ README_HELLMATCH.md, MUSIC_CREDITS.txt.
   (Settings > General > Repository name) and sets the About text. Docs/description already link hellmatch-cs2.
   After the rename: git remote set-url origin https://github.com/skink52/hellmatch-cs2 (old URL redirects meanwhile).
 
+## Update 17 Oct 09:45 - visibility compile took 30+ minutes
+Zach's full build sat in the vis step: "Generated clusters for 1814535 regions in 1013 s, 18442235 clusters".
+Cause: a Low visibility hint over every level box (36 hints, ~5.7e11 cubic units = ~2.2 million 64-unit cells).
+Nothing inside the levels blocks sight (level props are not occluders), so the fine vis bought nothing. Now only
+the whole-map Lowest hint + Low over the 3 lobby rooms (4 hints). maps/mg_hellmatch.vmap re-delivered (sha1 checked).
+Same lesson as Space Racer: keep Low hints off big empty volumes.
+
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
    Frags during CS2 warmup are deliberately not sent (console warning says so).

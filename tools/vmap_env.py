@@ -1,5 +1,5 @@
 """Adds the environment to the user's current map: a moondome (sky shell) around every level with a toolsskybox shell
-one unit inside it, and visibility hints (Lowest over the whole map and the void, Low inside each level and the lobby).
+one unit inside it, and visibility hints (Lowest over the whole map, Low only in the lobby rooms).
 
 usage: vmap_env.py <current.vmap> <out.vmap> <addon_out_dir>
 
@@ -73,7 +73,8 @@ def hint(box, kind):
 for box in boxes:
     shell(box, MOONDOME, 0)
     shell(box, TOOLSSKY, 1)
-    hint(box, HINT_LOW)
+    # no Low hint over the levels: nothing inside them blocks sight (the level props aren't occluders), and Low
+    # hints over all 32 boxes made the visibility compile run for hours (~1.8 million regions, 18 million clusters)
 for box in lobby:
     hint(box, HINT_LOW)
 allb = boxes + lobby
