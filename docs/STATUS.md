@@ -1,4 +1,4 @@
-# FreeDM for CS2 — current status and handover (16 Oct 2026, 17:15 Adelaide)
+# FreeDM for CS2 — current status and handover (17 Oct 2026, 08:30 Adelaide)
 
 Repo: https://github.com/skink52/freedm-cs2 (source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -112,19 +112,47 @@ see-through ~99% -> <1% (assumed near plane 4 or 7). Render-only (no physics). M
 unchanged, so the map needs no edit; 233 level .smd files written to the addon (spot-checked 8 by content).
 Zach must rebuild the map in Hammer (models recompile) before uploading. Not yet tested in CS2.
 
+## Update 17 Oct 08:30 - music, no money, own title art, Workshop images
+Written to the addon and verified (sha1; PNGs by pixels, MP3s by decoded audio - the outputs folder adds a metadata
+block to PNG/MP3 headers): maps/mg_freedm.vmap (rebuilt from Zach's 16 Oct 08:01 Hammer save, kept as
+ref/mg_freedm_hammer_saved_5.vmap; only change: 9 music point_soundevents), maps/scripts/freedm.js,
+soundevents_addon.vsndevts, sounds/fdm/music/*.mp3 (9), the three loading screenshots, README_FREEDM.md,
+TESTING_FREEDM.md, MUSIC_CREDITS.txt; GAME folder: MUSIC_CREDITS.txt, README_FREEDM.md.
+- Music (Zach picked "classic, improved FM" from a 3-way test render): FreeDM's own level tracks rendered from MIDI
+  with libADLMIDI (Nuked OPL3, DMXOPL3 bank by Sneakernets, MIT), loudness-matched to -16 LUFS, MP3 128k, 22 MB.
+  tools/music.py (cache in build/music; tools/get_adlmidi.sh builds the renderer). Long pool for respawn rounds
+  (FFA/TDM): DM05 Music for Freedoom 9, DM10 Paranoia, DM17 Panic, DM21 Friendly Fire, DM26 World of Pain (3-4 min).
+  Short pool for one-life rounds (elim/LMS): DM02 Descent from Grace, DM14 The Heroic Battle, DM23 Shells,
+  DM29 SevenFour (75-103 s). Sound events fdm_music.<id> are type csgo_music (everyone hears it, scaled by each
+  player's snd_musicvolume), volume 0.7 (tools/extras.py MUSIC_VOLUME). Map: point_soundevent fdm_mus_<id> in the
+  lobby (vmap_env.py, group fdm_env). Script src/cs2/55_music.js: shuffled playlist per round, next track 2 s after
+  one ends (MUSIC_GAP), StopSound at round end / cleanup; console "[freedm] music: DM.. <title>". CONFIG.MUSIC.
+  Players joining mid-track hear music from the next track. Not yet heard in CS2: the volume level, and whether a
+  csgo_music event started from a lobby point_soundevent reaches everyone.
+- Kill money off: CVARS_ALWAYS adds mp_playercashawards 0, mp_teamcashawards 0, mp_startmoney 0, mp_maxmoney 0.
+- Freedoom endorsement check (Freedoom's BSD licence: keep the notice in docs; don't use the Freedoom name to
+  endorse/promote): the loading screens used Freedoom's own FreeDM logo and title-screen art - replaced by our own
+  title (tools/title.py: Russo One font, OFL, in tools/fonts) over a level render (ref/art/render_*.png, made with
+  preview/view.html, which now takes w/h/nearest/clear and marine skins). Footer on both screens: "UNOFFICIAL. USES
+  FREEDOOM CONTENT UNDER ITS BSD LICENCE; NOT AFFILIATED WITH OR ENDORSED BY THE FREEDOOM PROJECT." README_FREEDM.md
+  says the same. Licence + credits + music credits now copied into out/game (shipped in the Workshop upload).
+  Still Zach's call: the name "FreeDM Arena" uses Freedoom's product name (FreeDM). Some FreeDM levels show
+  Freedoom's FreeDM logo as a wall texture (their unmodified level art) - keep those out of promo screenshots.
+  The chat labels "DOOM: ..." / "!doom" use id's trademark descriptively (README already disclaims id/Bethesda).
+- Workshop images: tools/workshop_art.py -> dist/workshop_square.jpg (1080x1080 thumbnail) and dist/workshop_wide.jpg
+  (1920x1080 gallery, with the unofficial line), both under 1 MB, sent to Zach.
+
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
    Frags during CS2 warmup are deliberately not sent (console warning says so).
 3. Check the CS2 console at round start for "point_script ... thinking for" lines (spread out at 15:50).
 2. Zach's own map additions (triggers, teleports, trigger_hurts, meshes) were last captured in
-   ref/mg_freedm_hammer_saved_4.vmap (his 22:33 15 Oct save); the map in his addon was regenerated from it 16 Oct 08:02.
-   The map hasn't changed since. Rebuild only from his latest Hammer save.
+   ref/mg_freedm_hammer_saved_5.vmap (his 16 Oct 08:01 save); the map in his addon was regenerated from it 17 Oct 08:28.
+   Rebuild only from his latest Hammer save.
 
 ## Ideas / not done
-- Late joiner replaces a bot in a full arena.
-- Radar image and loading-screen screenshot (harmless "Failed loading resource ... overheadmaps / screenshots" lines);
-  controls on the loading screen.
-- Hide the Doom HUD while the CS2 scoreboard is open (custom_hud_layout sets HUD_SCOREBOARD_VISIBLE on an ancestor).
+- Per-player music on/off (csgo_music plays to everyone; players use snd_musicvolume).
+- Intermission music between rounds (d_fdmint).
 
 ## Known CS2 limits found
 - cl_draw_only_deathnotices can't be set from a script (CS2 refuses); only sv_disable_radar works server-side.
@@ -139,4 +167,5 @@ Zach must rebuild the map in Hammer (models recompile) before uploading. Not yet
 ## Workshop
 Uploaded as game type Custom, map mg_freedm. Description (updated 16 Oct) includes the full Freedoom BSD licence —
 it has to, because the Workshop upload carries the compiled game folder, not the licence text files in the content
-folder. Source repo link: https://github.com/skink52/freedm-cs2
+folder (the build now also copies the licence and credits into out/game). Source repo link:
+https://github.com/skink52/freedm-cs2. Workshop title "FreeDM Arena CS2". Preview images: dist/workshop_*.jpg.

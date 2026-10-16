@@ -42,7 +42,9 @@ if THINGS:
         ca, sa = math.cos(yaw), math.sin(yaw)
         while i < len(lines) and lines[i] != 'end':
             mat = lines[i]
-            g = groups.setdefault(remap.get(mat, list(remap.values())[0]), [])
+            mpath = remap.get(mat, list(remap.values())[0])
+            if t.get('s'): mpath = mpath.replace('pal/pal0.vmat', 'pal/pal%d.vmat' % t['s'])
+            g = groups.setdefault(mpath, [])
             for kk in range(3):
                 f = lines[i + 1 + kk].split()
                 a, b, c = float(f[1]), float(f[2]), float(f[3])

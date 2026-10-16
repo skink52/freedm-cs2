@@ -23,8 +23,9 @@ fixed = msgs + ['FIGHT!', 'RESPAWNING...', 'SPECTATING', '1', '2', '3', 'RED TEA
 json.dump(sorted(set(s.upper() for s in fixed)), open('build/hud_strings.json', 'w'))
 PY
 python3 -I tools/hud.py out/addon build/hud_frames.json
-python3 -I tools/loading.py out/addon out/game   # loading screen, radar, overview file (out/game goes in the GAME addon folder), map icon
+python3 -I tools/music.py out/addon             # level music (rendered once into build/music; needs tools/get_adlmidi.sh)
 python3 -I tools/extras.py out/addon SKY1
+python3 -I tools/loading.py out/addon out/game   # loading screens (need the sky), radar, overview file (out/game goes in the GAME addon folder), map icon
 python3 tools/lobby.py
 mkdir -p build && python3 -I tools/vmf.py out/addon
 # the user's own Hammer map is the template: entities and lobby go straight into it, then the environment
@@ -43,3 +44,5 @@ cp README_FREEDM.md TESTING_FREEDM.md out/addon/
 cp test/types/point_script.d.ts out/addon/maps/scripts/ 2>/dev/null || true
 cp "${FREEDOOM_DIR:-freedoom}/COPYING.adoc" out/addon/FREEDOOM_LICENSE.txt
 cp "${FREEDOOM_DIR:-freedoom}/CREDITS" out/addon/FREEDOOM_CREDITS.txt
+# the Workshop upload carries the compiled GAME folder, so the licence and credits go there too
+cp out/addon/FREEDOOM_LICENSE.txt out/addon/FREEDOOM_CREDITS.txt out/addon/MUSIC_CREDITS.txt out/game/

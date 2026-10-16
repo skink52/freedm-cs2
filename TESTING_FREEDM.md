@@ -32,6 +32,7 @@ Run `map mg_freedm` with `bot_quota 5`, or invite a friend. Start the game norma
 6. **Kill credit.** Does a Doom frag show in the CS2 killfeed with the right killer? About 2 s later, does the victim respawn into Doom?
 7. **Round end.** Does the CS2 round end a few seconds after every arena finishes?
 8. **Teleporters** (MAP01). Does your view face the new direction after teleporting?
+9. **Music.** A track should start when the round starts (console: `[freedm] music: DM.. <title>`), play for everyone, follow `snd_musicvolume`, move on to another track when it ends, and stop when the round ends.
 
 ## D. Server (CounterStrikeSharp)
 Use `claude/freedm_cs2_server_issues.md` in the project. The biggest risks are AFK managers, no-respawn plugins, spawn protection and teamkill punishment.
@@ -39,5 +40,4 @@ Use `claude/freedm_cs2_server_issues.md` in the project. The biggest risks are A
 ## Known gaps (planned next)
 - Animated floors and walls (slime, lava, water) are still images. Flickering lights are steady.
 - Bots navigate doors, lifts and teleporters but are still simple. Elimination rounds end after 4 minutes at most.
-- Music: not in yet (Freedoom's music is MIDI).
 - Weapon keys: only next/previous (R, mouse 2, F). CS2 doesn't give scripts the number keys.

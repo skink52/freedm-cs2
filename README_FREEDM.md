@@ -23,6 +23,7 @@ The map's main entities:
 | `prop_dynamic` | `fdm_src_prop` | Model = `models/fdm/null.vmdl`, not solid |
 | `info_target` | `fdm_booth` | Centre of the small sealed room (players' bodies wait here) |
 | `point_soundevent` ×37 | `fdm_snd_<name>` | Sound Event Name = `fdm.<name>` |
+| `point_soundevent` ×9 | `fdm_mus_<track>` | Sound Event Name = `fdm_music.<track>` (music) |
 | `env_sky` | `fdm_sky` | `materials/fdm/sky/sky.vmat` |
 | `env_gradient_fog` | `fdm_fog` | Black, 256 to 3000 units (Doom's light fade) |
 
@@ -53,6 +54,7 @@ Everything else is plain props:
   - In elimination modes the kills are applied when the round ends, so eliminated players can keep watching.
 - When an arena finishes, its players watch the arenas still fighting. Mouse 1 / mouse 2 change player, E or Space changes arena.
 - The CS2 round ends when every arena is done, or after 10 minutes.
+- Music: FreeDM's own soundtrack, played one track after another while a round runs. Free for all and team deathmatch rounds play longer tracks, one-life rounds play short ones. Everyone hears the same track; each player can turn it down with their own music volume (`snd_musicvolume` in the console).
 - AFK: after 20 seconds idle you get a warning. At 30 seconds you are moved to spectating and skipped next round until you press a key or type `!back`. Both notices show on that player's own screen, not in chat.
 - CS2 bots on the server play using the Doom bot AI. `bot_quota 6` fills a test server.
 
@@ -81,9 +83,12 @@ When `APPLY_CVARS` is on, the map sets these:
 - `mp_respawn_on_death_t/ct` (on for respawn modes, off for elimination).
 - `mp_teammates_are_enemies` (1 in free-for-all rounds so same-side kills aren't teamkills).
 - `mp_respawn_immunitytime 0`, `mp_death_drop_gun 0`, and the buy settings.
+- No money: `mp_playercashawards 0`, `mp_teamcashawards 0`, `mp_startmoney 0`, `mp_maxmoney 0`.
 
 ## Credits
 
+FreeDM Arena is an unofficial fan project. It is not affiliated with or endorsed by the Freedoom project, id Software, Bethesda or Valve; Freedoom is named only to credit its content.
+
 The code (the cs_script and the build tools) was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52.
 
-All game content is from Freedoom (freedoom.github.io, BSD-licensed): FreeDM levels, textures, sprites, sounds and graphics. The game code is a fresh implementation of Doom's rules in cs_script.
+All game content is from Freedoom (freedoom.github.io, BSD-licensed): FreeDM levels, textures, sprites, sounds, music and graphics. The music is rendered from Freedoom's MIDI files with an OPL3 FM synth and the DMXOPL3 instrument bank (MIT licence); track titles and composers are in `MUSIC_CREDITS.txt`. The game code is a fresh implementation of Doom's rules in cs_script.

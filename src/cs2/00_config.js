@@ -39,7 +39,11 @@ const CONFIG = {
     "mp_death_drop_gun 0",
     "mp_buy_anywhere 0",
     "mp_buytime 0",
-    "sv_disable_radar 1",          // the CS2 radar can't be hidden per client from a script; this is the server-side switch
+    "mp_playercashawards 0",       // no money for kills (nothing can be bought anyway)
+    "mp_teamcashawards 0",
+    "mp_startmoney 0",
+    "mp_maxmoney 0",
+    "sv_disable_radar 1",         // the CS2 radar can't be hidden per client from a script; this is the server-side switch
   ],
   RESPAWN_CVARS_ON: ["mp_respawn_on_death_t 1", "mp_respawn_on_death_ct 1"],
   RESPAWN_CVARS_OFF: ["mp_respawn_on_death_t 0", "mp_respawn_on_death_ct 0"],
@@ -62,7 +66,9 @@ const CONFIG = {
   TICK_INTERP: true,
   MAX_EFFECT_PROPS: 120,         // per arena: puffs, blood, explosions...
   MAX_SOUNDS_PER_TICK: 24,
-  SPAWN_BUDGET: 20,              // new props created per server tick at most (round start creates hundreds)
+  MUSIC: true,                   // level music during rounds: long tracks in respawn rounds, short ones in one-life rounds
+  MUSIC_GAP: 2,                  // seconds of quiet between tracks
+  SPAWN_BUDGET: 20,             // new props created per server tick at most (round start creates hundreds)
   HIDE_HUD_ON_SCOREBOARD: false,  // default for everyone; each player can switch it with !hud scores
   HUD_BUDGET: 600,               // HUD changes sent per server tick at most (the first draw for many players is spread out)
 
@@ -71,6 +77,7 @@ const CONFIG = {
   PROP_TEMPLATE: "fdm_tpl_prop",
   BOOTH: "fdm_booth",
   SOUND_PREFIX: "fdm_snd_",
+  MUSIC_PREFIX: "fdm_mus_",
   MAP_PARAMS: "fdm_map_params",  // info_map_parameters: its FireWinCondition input ends the CS2 round with a winner
   ROUND_SLACK: 15,               // CS2 round clock runs this much longer than the Doom clock, so the script ends the round
 

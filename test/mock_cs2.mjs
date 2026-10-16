@@ -59,6 +59,21 @@ class CustomHudLayout extends Entity {
   ResetForPlayer() {}
 }
 const spawnedEnts = [];
+// music: one track at a time, from the pool that fits the round's mode
+const musicInfo = new Map(JSON.parse(fs.readFileSync(path.join(root, 'out/addon/_gen/music.json'), 'utf8')).map((t) => [t.id, t]));
+const music = { starts: 0, stops: 0, playing: null, byPool: {}, problems: [] };
+function musicEvent(id, on) {
+  const t = musicInfo.get(id);
+  if (!t) throw new Error('unknown music ' + id);
+  if (!on) { music.stops++; if (music.playing && music.playing.id === id) music.playing = null; return; }
+  music.starts++;
+  music.byPool[t.pool] = (music.byPool[t.pool] || 0) + 1;
+  if (music.playing && time < music.playing.until - 0.05) music.problems.push(`t=${time.toFixed(1)} ${id} started over ${music.playing.id}`);
+  const rm = ctx.__dbg && ctx.__dbg().rm;
+  const respawn = rm && { ffa: true, tdm: true, elim: false, lms: false }[rm.modeKey];
+  if (rm && (respawn ? 'long' : 'short') !== t.pool) music.problems.push(`t=${time.toFixed(1)} ${id} (${t.pool}) in a ${rm.modeKey} round`);
+  music.playing = { id, until: time + t.seconds };
+}
 const hudXml = fs.readFileSync(path.join(root, 'out/addon/panorama/layout/custom_game/freedm.xml'), 'utf8');
 const hudIds = new Set([...hudXml.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
 const hudCss = fs.readFileSync(path.join(root, 'out/addon/panorama/styles/custom_game/freedm.css'), 'utf8');
@@ -150,6 +165,8 @@ const Instance = {
   ClientCommand: () => {},
   EntFireAtTarget: ({ target, input, value }) => {
     if (input === 'Skin') stats.skins++;
+    else if (input === 'StartSound' && target.name.startsWith('fdm_mus_')) musicEvent(target.name.slice(8), true);
+    else if (input === 'StopSound' && target.name.startsWith('fdm_mus_')) musicEvent(target.name.slice(8), false);
     else if (input === 'StartSound') { stats.sounds++; if (!target.name.startsWith('fdm_snd_')) throw new Error('sound on ' + target.name); }
     else if (input === 'SetSourceEntity') { if (![...spawnedEnts].some((e) => e.name === value)) throw new Error('unknown sound source ' + value); }
     else throw new Error('unexpected input ' + input);
@@ -273,3 +290,4 @@ if (stats.errors.length) { console.log('ERRORS/WARNINGS:'); for (const e of [...
 console.log("hud by panel", JSON.stringify(Object.entries(stats.hudBy || {}).sort((a,b)=>b[1]-a[1]).slice(0,14)));
 console.log("status bar swaps", (stats.hudBy || {}).fdm_sbarbox || 0);
 console.log('log:', stats.msgs.slice(0, 5).join(' | '));
+console.log(`music: ${music.starts} tracks started (${JSON.stringify(music.byPool)}), ${music.stops} stops, problems ${music.problems.length}`, music.problems.slice(0, 5).join(' | '));

@@ -90,6 +90,12 @@ seed = ent('func_nav_markup', (0, 0, 0), group=GROUP, navProperty_NavGen='WALKAB
 v, faces = box_faces(-704, -704, LZ + 1, 704, 704, LZ + 40, inward=False)
 seed.attr('children')[2].append(mesh_node(polymesh(v, faces, ['materials/tools/toolsnavattribute.vmat'] * 6, scale=1.0), GROUP, attach=False))
 
+# music: one point_soundevent per track (the script starts and stops them)
+mj = os.path.join(OUT, '_gen/music.json')
+for k, t in enumerate(json.load(open(mj)) if os.path.exists(mj) else []):
+    ent('point_soundevent', (-700 + k * 64, 400, LZ + 64), group=GROUP, targetname='fdm_mus_' + t['id'],
+        soundName='fdm_music.' + t['id'], startOnSpawn='0', toLocalPlayer='0', stopOnNew='0', saveAndRestore='0')
+
 # ---------------------------------------------------------------- level geometry props: always match the current build
 def is_level_prop(c):
     if c.type != 'CMapEntity': return False
@@ -115,7 +121,7 @@ refs = pre['map_asset_references'][2]
 for m in (MOONDOME, TOOLSSKY, 'materials/tools/toolsnavattribute.vmat'):
     if m not in refs: refs.append(m)
 names = pre['map_subasset_reference_names'][2]; cnts = pre['map_subasset_reference_counts'][2]
-for cls in ('prop_static', 'prop_dynamic'):
+for cls in ('prop_static', 'prop_dynamic', 'point_soundevent'):
     k = sum(1 for c in kids[2] if c.type == 'CMapEntity' and c.get('entity_properties').get('classname') == cls)
     if cls in names: cnts[names.index(cls)] = k
 for cls in ('visibility_hint', 'func_nav_markup', 'info_map_parameters'):

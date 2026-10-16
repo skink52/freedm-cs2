@@ -78,6 +78,10 @@ for k, key in enumerate(sorted(sprites)):
 for k, s in enumerate(SOUNDS):
     ent('point_soundevent', (-700 + (k % 20) * 64, 700, LZ + 64), targetname='fdm_snd_' + s, soundName='fdm.' + s,
         startOnSpawn='0', toLocalPlayer='0', stopOnNew='0')
+mj = os.path.join(OUT, '_gen/music.json')
+for k, t in enumerate(json.load(open(mj)) if os.path.exists(mj) else []):
+    ent('point_soundevent', (-700 + k * 64, 400, LZ + 64), targetname='fdm_mus_' + t['id'], soundName='fdm_music.' + t['id'],
+        startOnSpawn='0', toLocalPlayer='0', stopOnNew='0')
 # level geometry and movers
 for p in props:
     o = p['origin']

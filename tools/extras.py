@@ -1,5 +1,5 @@
 """Sounds (wav + sound events) and the sky material."""
-import os, sys, math, wave, struct
+import os, sys, math, wave, struct, json
 import numpy as np
 from PIL import Image
 sys.path.insert(0, os.path.dirname(__file__))
@@ -7,6 +7,8 @@ import assets
 
 OUT = sys.argv[1]
 SKY = sys.argv[2] if len(sys.argv) > 2 else 'SKY1'
+
+MUSIC_VOLUME = 0.7          # music loudness (each player's own music volume setting scales it too)
 
 SOUNDS = ('barexp bdcls bdopn bfg dbcls dbload dbopn dorcls doropn dshtgn firxpl getpow itemup itmbk noway oof pdiehi pistol '
           'plasma pldeth plpain pstart pstop punch rlaunc rxplod sawful sawhit sawidl sawup shotgn slop stnmov telept wpnup '
@@ -46,6 +48,11 @@ def sounds():
         convert_wav(src, os.path.join(d, 'ds%s.wav' % s))
         found.append(s)
         ev += ['\t"fdm.%s" =' % s, '\t{', '\t\tbase = "fdm.base"', '\t\tvsnd_files_track_01 = "sounds/fdm/ds%s.vsnd"' % s, '\t}']
+    # music (tools/music.py): csgo_music plays the same for everyone, at each player's own music volume
+    mj = os.path.join(OUT, '_gen/music.json')
+    for t in (json.load(open(mj)) if os.path.exists(mj) else []):
+        ev += ['\t"fdm_music.%s" =' % t['id'], '\t{', '\t\ttype = "csgo_music"', '\t\tvolume = %.2f' % MUSIC_VOLUME,
+               '\t\tvolume_convar = "snd_musicvolume"', '\t\tvsnd_files = "sounds/fdm/music/%s.vsnd"' % t['id'], '\t}']
     ev.append('}')
     os.makedirs(os.path.join(OUT, 'soundevents'), exist_ok=True)
     open(os.path.join(OUT, 'soundevents/soundevents_addon.vsndevts'), 'w', newline='\n').write('\n'.join(ev) + '\n')

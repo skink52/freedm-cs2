@@ -96,6 +96,7 @@ function startDoomRound() {
   if (!rm.startRound()) { startAt = Instance.GetGameTime() + 5; return; }
   phase = "running";
   const respawn = MODES[rm.modeKey].respawn;
+  guard("music", () => musicStart(respawn ? "long" : "short"));
   cvars(["mp_ignore_round_win_conditions 1"]);
   // one-life rounds keep CS2 respawning on when bots can be replaced: Doom deaths there only reach CS2 at the end
   // of the round, and it gives someone joining mid-round a body so they can take over a bot's marine
@@ -123,6 +124,7 @@ function onArenaBuilt(a) {
 function endDoomRound() {
   if (phase !== "running") return;
   phase = "ending";
+  guard("music", musicStop);
   // elimination kills go to CS2 now, in the order they happened
   if (CONFIG.REAL_KILLS && !Instance.IsWarmupPeriod()) for (const k of elimKills) csKill(k.victim, k.killer);
   elimKills.length = 0;
@@ -148,6 +150,7 @@ function endDoomRound() {
 }
 
 function cleanupRound(entitiesGone) {
+  guard("music", musicStop);
   for (const v of views.values()) {
     if (entitiesGone) { v.props.clear(); v.movers = []; v.anchors = null; }
     else { v.destroy(); if (v.anchors) v.anchors.release(); }
@@ -451,6 +454,7 @@ function think() {
   lastTime = now;
   if (!(dt > 0) || dt > 0.25) dt = 1 / 64;
   if (ready) guard("frame", () => frame(dt));
+  if (ready) guard("music", () => musicTick(now));
   Instance.SetNextThink(now);
 }
 

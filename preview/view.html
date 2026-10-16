@@ -1,8 +1,10 @@
 <!doctype html><html><body style="margin:0;background:#000">
-<canvas id="c" width="960" height="600"></canvas>
+<canvas id="c"></canvas>
 <script>
 const P = new URLSearchParams(location.search);
 const cam = JSON.parse(P.get('cam'));   // {x,y,z,yaw,pitch,fov}
+const W = +(P.get('w') || 960), H = +(P.get('h') || 600), NEAR = P.get('nearest') === '1';
+document.getElementById('c').width = W; document.getElementById('c').height = H;
 const gl = document.getElementById('c').getContext('webgl2', {antialias:false, preserveDrawingBuffer:true});
 const vs = `attribute vec3 p; attribute vec2 uv; uniform mat4 M; varying vec2 vuv; varying float d;
 void main(){ vec4 q = M*vec4(p,1.0); gl_Position=q; vuv=uv; d=q.w; }`;
@@ -15,7 +17,7 @@ const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attac
 gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK); gl.frontFace(gl.CCW);
 function tex(url){return new Promise(r=>{const i=new Image();i.onload=()=>{const t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);
  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,i);
- gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+ const flt=NEAR?gl.NEAREST:gl.LINEAR; gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,flt);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,flt);
  const pot=(i.width&(i.width-1))==0&&(i.height&(i.height-1))==0;
  const w=gl.REPEAT; gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,w);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,w);
  t.pot=pot; r(t);};i.onerror=()=>r(null);i.src=url;});}
@@ -35,12 +37,12 @@ function mat4mul(a,b){const o=new Float32Array(16);for(let i=0;i<4;i++)for(let j
  const u=[r[1]*f[2]-r[2]*f[1],r[2]*f[0]-r[0]*f[2],r[0]*f[1]-r[1]*f[0]];
  const e=[cam.x,cam.y,cam.z]; const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
  const V=new Float32Array([r[0],u[0],-f[0],0, r[1],u[1],-f[1],0, r[2],u[2],-f[2],0, -dot(r,e),-dot(u,e),dot(f,e),1]);
- const asp=960/600, near=4, far=40000; const th=Math.tan((cam.fov||90)*Math.PI/360)*(3/4); // 4:3 horizontal fov basis
+ const asp=W/H, near=4, far=40000; const th=Math.tan((cam.fov||90)*Math.PI/360)*(3/4); // 4:3 horizontal fov basis
  const fy=1/th, fx=fy/asp;
  const Pm=new Float32Array([fx,0,0,0, 0,fy,0,0, 0,0,(far+near)/(near-far),-1, 0,0,2*far*near/(near-far),0]);
  gl.uniformMatrix4fv(gl.getUniformLocation(pr,'M'),false,mat4mul(Pm,V));
  gl.uniform1f(gl.getUniformLocation(pr,'fogEnd'), cam.fog||3500);
- gl.clearColor(0.25,0.3,0.45,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+ const CL=(P.get('clear')||'0.25,0.3,0.45').split(',').map(Number); gl.clearColor(CL[0],CL[1],CL[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
  const base='../out/addon/';
  for(const m of sc.mats){
    const t=await tex(base+m.color); if(!t) continue;

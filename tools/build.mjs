@@ -14,7 +14,9 @@ if (fs.existsSync(adapterDir) && fs.existsSync(path.join(root, 'out/addon/_gen/s
   const head = `import { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, CSRoundEndReason, Entity } from "cs_script/point_script";\n`;
   const sprites = fs.readFileSync(path.join(root, 'out/addon/_gen/sprite_models.json'), 'utf8');
   const strings = fs.readFileSync(path.join(root, 'build/hud_strings.json'), 'utf8');
-  const out = head + core + `\nconst LEVELS = ${levels};\nconst SPRITE_MODELS = ${sprites};\nconst HUD_STRING_INDEX = new Map(${strings}.map((s, i) => [s, i]));\n` + adapter;
+  const musicFile = path.join(root, 'out/addon/_gen/music.json');
+  const music = fs.existsSync(musicFile) ? JSON.stringify(JSON.parse(fs.readFileSync(musicFile, 'utf8')).map((t) => ({ id: t.id, pool: t.pool, seconds: t.seconds, title: t.title }))) : '[]';
+  const out = head + core + `\nconst LEVELS = ${levels};\nconst SPRITE_MODELS = ${sprites};\nconst HUD_STRING_INDEX = new Map(${strings}.map((s, i) => [s, i]));\nconst MUSIC_TRACKS = ${music};\n` + adapter;
   fs.mkdirSync(path.join(root, 'out/addon/maps/scripts'), { recursive: true });
   fs.writeFileSync(path.join(root, 'out/addon/maps/scripts/freedm.js'), out);
   console.log('cs2 script', (out.length / 1024).toFixed(0), 'KB');

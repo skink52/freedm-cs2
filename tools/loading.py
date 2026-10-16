@@ -3,17 +3,19 @@
 #   panorama/images/overheadmaps/mg_freedm_radar.psd             radar / overview (CS2 asks for mg_freedm_radar_psd)
 #   panorama/images/map_icons/map_icon_mg_freedm.svg             map icon (CS2 asks for map_icon_mg_freedm.vsvg)
 #   game/resource/overviews/mg_freedm.txt                        where the radar sits in the world (goes in the GAME folder)
+# Title art and backgrounds come from tools/title.py (our own, not Freedoom's FreeDM logo).
 # The HUD stylesheet refers to the three images so CS2 compiles them along with the HUD.
 import json, os, struct, sys
 import numpy as np
 from PIL import Image, ImageFilter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import assets
+import assets, title
 
 OUT = sys.argv[1]                      # out/addon (content)
 GAME_OUT = sys.argv[2]                 # out/game (files for the compiled addon folder)
 MAP = 'mg_freedm'
 FD = assets.FD
+DISCLAIMER = 'UNOFFICIAL. USES FREEDOOM CONTENT UNDER ITS BSD LICENCE; NOT AFFILIATED WITH OR ENDORSED BY THE FREEDOOM PROJECT.'
 
 def glyph(code):
     g = assets.graphic('STCFN%03d' % code) if 33 <= code <= 95 else None
@@ -49,19 +51,16 @@ def paste_text(base, text, x, y, scale, tint=None, shadow=True):
 # ---------------------------------------------------------------- loading screen 1920x1080
 def loading_screen():
     W, H = 1920, 1080
-    bg = Image.open(os.path.join(FD, 'graphics/titlepic/freedm_titlepic.png')).convert('RGB')
-    bg = bg.crop((0, 62, 320, 200)).resize((1920, 1080), Image.NEAREST)   # below the picture's own logo
-    bg = bg.filter(ImageFilter.GaussianBlur(4))
+    bg = title.scene('wide', os.path.join(OUT, 'materials/fdm/sky/sky_color.png')).filter(ImageFilter.GaussianBlur(3))
     arr = np.array(bg).astype(np.float32) * 0.42
     yy, xx = np.mgrid[0:H, 0:W]
     vign = 1 - 0.6 * (((xx - W / 2) / (W / 2)) ** 2 + ((yy - H / 2) / (H / 2)) ** 2) / 2
     arr *= vign[..., None]
     base = Image.fromarray(arr.clip(0, 255).astype(np.uint8)).convert('RGBA')
-    logo = Image.open(os.path.join(FD, 'graphics/titlepic/freedm_title.png')).convert('RGBA')
-    logo = logo.resize((int(logo.width * 1.1), int(logo.height * 1.1)), Image.LANCZOS)
-    base.alpha_composite(logo, (80, 30))
+    base.alpha_composite(title.logo(760), (100, 40))
     gold, white, grey = (255, 200, 60), (235, 235, 235), (165, 165, 165)
-    paste_text(base, 'ARENA - DEATHMATCH INSIDE COUNTER-STRIKE 2', 130, 485, 4, white)
+    paste_text(base, 'DEATHMATCH INSIDE COUNTER-STRIKE 2', 130, 335, 4, white)
+    paste_text(base, 'AN UNOFFICIAL FAN PROJECT', 130, 385, 3, grey)
     # modes, left
     y = 590
     paste_text(base, 'EVERY ROUND', 130, y, 4, gold); y += 56
@@ -78,7 +77,7 @@ def loading_screen():
     for a, b in rows:
         paste_text(base, a, x0, y, 3, gold); paste_text(base, b, x1, y, 3, white); y += 36
     paste_text(base, '(/DOOM WORKS TOO)', x1, y, 3, grey)
-    paste_text(base, 'GAME CONTENT FROM THE FREEDOOM PROJECT (BSD LICENCE)', 130, 1040, 2, grey)
+    paste_text(base, DISCLAIMER, 130, 1040, 2, grey)
     path = os.path.join(OUT, 'panorama/images/map_icons/screenshots/1080p')
     os.makedirs(path, exist_ok=True)
     # the loading screen cycles the numbered screenshots (like Valve's maps); the plain one is used for the map tile
@@ -92,16 +91,14 @@ def overview_screen(radar_img):
     r = radar_img.resize((1000, 1000), Image.LANCZOS)
     base.alpha_composite(r, (900, 40))
     gold, white, grey = (255, 200, 60), (235, 235, 235), (165, 165, 165)
-    logo = Image.open(os.path.join(FD, 'graphics/titlepic/freedm_title.png')).convert('RGBA')
-    logo = logo.resize((int(logo.width * 0.85), int(logo.height * 0.85)), Image.LANCZOS)
-    base.alpha_composite(logo, (60, 40))
+    base.alpha_composite(title.logo(700), (70, 50))
     y = 440
     paste_text(base, '32 FREEDM LEVELS', 110, y, 5, gold); y += 80
     for line in ['UP TO 64 PLAYERS, 4 ARENAS', 'SAME MODE IN EVERY ARENA', '', 'FREE FOR ALL', 'TEAM DEATHMATCH',
-                 'TEAM ELIMINATION', 'LAST MAN STANDING', '', 'RANDOM WEAPON STARTS', 'LATE JOINERS REPLACE BOTS']:
+                 'TEAM ELIMINATION', 'LAST MAN STANDING', '', 'RANDOM WEAPON STARTS', 'LATE JOINERS REPLACE BOTS', 'FREEDM SOUNDTRACK']:
         if line: paste_text(base, line, 110, y, 3, white)
         y += 40
-    paste_text(base, 'GAME CONTENT FROM THE FREEDOOM PROJECT (BSD LICENCE)', 110, 1040, 2, grey)
+    paste_text(base, DISCLAIMER, 110, 1040, 2, grey)
     path = os.path.join(OUT, 'panorama/images/map_icons/screenshots/1080p')
     base.convert('RGB').save(os.path.join(path, MAP + '_2.png'))
 
