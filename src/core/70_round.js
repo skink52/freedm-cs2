@@ -11,12 +11,14 @@ const MODES = {
 };
 const TEAM_NAMES = ['RED', 'BLUE'];
 
-// arena sizes: as few arenas as fit everyone (16 each at most), with the players spread evenly so the
-// arenas are alike and finish at similar times
+// arena sizes: one arena until there are enough people for two of at least arenaMin (8), then two, then four;
+// people are spread evenly over the arenas in use. 15 -> [15], 16 -> [8,8], 31 -> [16,15], 32 -> [8,8,8,8]
 function arenaSizes(n, cfg) {
-  const max = cfg.arenaMax, maxArenas = cfg.maxArenas;
+  const max = cfg.arenaMax, min = cfg.arenaMin || 8, maxArenas = cfg.maxArenas;
   if (n <= 0) return [];
-  const count = Math.min(maxArenas, Math.ceil(n / max));
+  let count = 1;
+  while (count * 2 <= maxArenas && n >= count * 2 * min) count *= 2;
+  while (count < maxArenas && n > count * max) count++;
   const m = Math.min(n, max * count);
   const base = Math.floor(m / count), extra = m % count;
   return Array.from({ length: count }, (_, i) => base + (i < extra ? 1 : 0));
@@ -32,6 +34,7 @@ class RoundManager {
     this.levels = levelData;      // array of converted level records
     this.cfg = cfg;
     this.arenas = [];
+    this.pending = [];
     this.state = 'idle';          // idle | running | over
     this.time = 0;                // tics since round start
     this.modeKey = null;
@@ -124,18 +127,28 @@ class RoundManager {
     }
     this.modeKey = modeKey;
     this.modeHistory.push(modeKey); if (this.modeHistory.length > 10) this.modeHistory.shift();
-    this.loadout = this.pickLoadout();
     this.graceEnd = 0;
-    this.buildArenas(groups, modeKey);
+    this.arenas = [];
+    const plan = this.planArenas(groups, modeKey);
+    this.plan = plan;
+    for (const item of plan) for (const pe of item.grp) pe.status = 'planned';
+    this.pending = plan.slice();
     this.state = 'running';
-    this.events.push({ type: 'roundStart', mode: modeKey, loadout: this.loadout, arenas: this.arenas });
+    // building an arena (level, players, bots) is the heavy part: CS2 builds one per tic so the server doesn't hitch
+    if (!this.cfg.staggerArenas) while (this.pending.length) this.buildNext();
+    this.events.push({ type: 'roundStart', mode: modeKey, plan });
     return true;
   }
 
+  // each arena has its own small chance of a weapon start (weights in cfg.loadouts)
   pickLoadout() {
-    const keys = (this.cfg.loadouts || []).filter((k) => LOADOUTS[k]);
+    const w = this.cfg.loadouts || {};
+    const list = Array.isArray(w) ? w.map((k) => [k, 1]) : Object.entries(w);
+    const keys = list.filter(([k, n]) => LOADOUTS[k] && n > 0);
     if (!keys.length || !(Math.random() < (this.cfg.loadoutChance || 0))) return null;
-    return keys[Math.floor(Math.random() * keys.length)];
+    let r = Math.random() * keys.reduce((t, [, n]) => t + n, 0);
+    for (const [k, n] of keys) { r -= n; if (r <= 0) return k; }
+    return keys[0][0];
   }
 
   splitGroups(eligible, sizes, teams) {
@@ -168,11 +181,11 @@ class RoundManager {
     return groups;
   }
 
-  buildArenas(groups, modeKey) {
-    this.arenas = [];
+  planArenas(groups, modeKey) {
+    const plan = [];
     const used = new Set();
-    groups.forEach((grp, i) => {
-      if (!grp.length) return;
+    for (const grp of groups) {
+      if (!grp.length) continue;
       let mk = modeKey;
       const tCount = grp.filter((p) => p.csTeam === 2).length, ctCount = grp.length - tCount;
       if (MODES[mk].teams && (grp.length < MODES[mk].minPlayers || !tCount || !ctCount)) mk = MODES[mk].respawn ? 'ffa' : 'lms';
@@ -180,25 +193,37 @@ class RoundManager {
       const L = this.pickMap(grp.length, used);
       used.add(L.id);
       this.mapHistory.push(L.id); if (this.mapHistory.length > 40) this.mapHistory.shift();
-      const arena = new Arena(i, Object.assign({}, this.cfg.arena));
-      arena.load(L);
-      arena.modeKey = mk; arena.mode = MODES[mk];
-      arena.loadout = this.loadout;
-      arena.teamsActive = MODES[mk].teams;
-      arena.friendlyFire = this.cfg.friendlyFire;
-      arena.mapId = L.id; arena.mapTitle = L.title;
-      const n = grp.length;
-      arena.target = mk === 'ffa' ? Math.min(this.cfg.ffaFrags, 6 + 2 * n) : mk === 'tdm' ? Math.min(this.cfg.tdmFrags, 4 * n) : 0;
-      arena.startTime = this.time;
-      arena.countdown = this.cfg.countdownTics;
-      this.arenas.push(arena);
-      grp.forEach((pe, k) => this.joinArena(pe, arena, true));
-      const spots = arena.roundStartSpots(grp.map((pe) => pe.player));
-      for (const pe of grp) arena.spawnPlayer(pe.player, spots.get(pe.player));
-      // the round starts frozen until the countdown ends
-      for (const pe of grp) pe.player.frozen = true;
-    });
-    this.arenas.forEach((a, i) => { a.index = i; });
+      plan.push({ grp, mk, L, loadout: this.pickLoadout() });
+    }
+    return plan;
+  }
+
+  buildNext() {
+    const item = this.pending.shift();
+    if (!item) return null;
+    const { mk, L } = item;
+    // people who left (or went AFK) since the plan was made are skipped
+    const grp = item.grp.filter((pe) => this.people.get(pe.slot) === pe && pe.status === 'planned');
+    const arena = new Arena(this.arenas.length, Object.assign({}, this.cfg.arena));
+    arena.load(L);
+    arena.modeKey = mk; arena.mode = MODES[mk];
+    arena.loadout = item.loadout;
+    arena.teamsActive = MODES[mk].teams;
+    arena.friendlyFire = this.cfg.friendlyFire;
+    arena.mapId = L.id; arena.mapTitle = L.title;
+    const n = item.grp.length;
+    arena.target = mk === 'ffa' ? Math.min(this.cfg.ffaFrags, 6 + 2 * n) : mk === 'tdm' ? Math.min(this.cfg.tdmFrags, 4 * n) : 0;
+    arena.startTime = this.time;
+    arena.countdown = this.cfg.countdownTics;
+    arena.index = this.arenas.length;
+    this.arenas.push(arena);
+    grp.forEach((pe) => this.joinArena(pe, arena, true));
+    const spots = arena.roundStartSpots(grp.map((pe) => pe.player));
+    for (const pe of grp) arena.spawnPlayer(pe.player, spots.get(pe.player));
+    // the round starts frozen until the countdown ends
+    for (const pe of grp) pe.player.frozen = true;
+    this.events.push({ type: 'arenaBuilt', arena });
+    return arena;
   }
 
   joinArena(pe, arena, atStart) {
@@ -275,6 +300,7 @@ class RoundManager {
   tic(remainingSeconds) {
     if (this.state !== 'running') return;
     this.time++;
+    if (this.pending && this.pending.length) this.buildNext();
     for (const a of this.arenas) {
       if (a.finished && a.time >= a.finishedAt + this.cfg.arenaEndHoldTics) continue;
       a.time = (a.time || 0) + 1;
@@ -294,7 +320,7 @@ class RoundManager {
     }
     this.checkAfk();
     // once the first arena is done, the others get a limited time so nobody waits long
-    if (this.cfg.finishGraceTics && !this.graceEnd && this.arenas.some((a) => a.finished) && this.arenas.some((a) => !a.finished)) {
+    if (this.cfg.finishGraceTics && !this.graceEnd && !this.pending.length && this.arenas.some((a) => a.finished) && this.arenas.some((a) => !a.finished)) {
       this.graceEnd = this.time + this.cfg.finishGraceTics;
       this.events.push({ type: 'grace', tics: this.cfg.finishGraceTics });
     }
@@ -416,7 +442,7 @@ class RoundManager {
         if (pe && pe.status === 'playing') { pe.status = 'spectating'; pe.spec = { arena: a.index, target: null }; this.fixSpectate(pe, 'arena'); }
       }
     }
-    if (this.arenas.length && this.arenas.every((a) => a.finished)) {
+    if (this.arenas.length && !this.pending.length && this.arenas.every((a) => a.finished)) {
       if (this.arenas.every((a) => a.time >= a.finishedAt + this.cfg.arenaEndHoldTics)) {
         this.state = 'over';
         this.events.push({ type: 'roundOver', arenas: this.arenas });
@@ -443,5 +469,6 @@ class RoundManager {
   endRoundCleanup() {
     for (const pe of this.people.values()) { pe.arena = null; pe.player = null; pe.status = 'none'; pe.spec = null; }
     this.arenas = [];
+    this.pending = [];
   }
 }

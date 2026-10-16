@@ -161,7 +161,7 @@ hooks.OnActivate();
 let rounds = 0;
 const t0 = Date.now();
 let thinkMs = 0, maxThink = 0;
-const CHATS = { 20: "!hud", 30: "!doom", 40: "!hud small", 50: "!hud", 60: "!hud center" };
+const CHATS = { 20: "!hud", 30: "/doom", 40: "/hud small", 50: "!hud", 60: "!hud center" };
 while (time < SECONDS) {
   time += TICK;
   for (const [at, text] of Object.entries(CHATS)) if (Math.abs(time - +at) < TICK / 2 && players[0] && hooks.OnPlayerChat) hooks.OnPlayerChat({ player: players[0], text, team: 0 });
@@ -200,6 +200,7 @@ while (time < SECONDS) {
     try { thinkFn(); } catch (err) { stats.errors.push('THROW ' + err.stack); break; }
     const d = performance.now() - s; thinkMs += d; maxThink = Math.max(maxThink, d);
     if (d > 16) (stats.slow ||= []).push(`${time.toFixed(1)}s:${d.toFixed(0)}ms`);
+    if (OPTS.includes('prof')) { const now = { hud: stats.hudCalls, tp: stats.teleports + stats.moves, sp: stats.spawned, mdl: stats.setModel }; const pv = stats.prev || now; if (d > 8) console.log(`t=${time.toFixed(2)} ${d.toFixed(1)}ms hud+${now.hud - pv.hud} moves+${now.tp - pv.tp} spawned+${now.sp - pv.sp} setModel+${now.mdl - pv.mdl}`); stats.prev = now; }
   }
   if (OPTS.includes('disc') && Math.abs(time - 60) < TICK / 2) { const c = players[3]; c.connected = false; hooks.OnPlayerDisconnect({ playerSlot: c.slot }); }
   // churn: people joining mid-round (CS2 kicks a bot to make room and the newcomer reuses its slot), team swaps, leavers

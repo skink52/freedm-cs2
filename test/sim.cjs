@@ -7,7 +7,7 @@ const t0 = Date.now();
 let totalTics = 0;
 for (let r = 0; r < ROUNDS; r++) {
   rm.startRound(MODE);
-  const desc = rm.arenas.map((a) => `${a.mapId}:${a.modeKey}:${a.players.size}p:target${a.target}`).join(' ') + (rm.loadout ? ' loadout=' + rm.loadout : '');
+  const desc = rm.arenas.map((a) => `${a.mapId}:${a.modeKey}:${a.players.size}p:target${a.target}${a.loadout ? ':' + a.loadout : ''}`).join(' ');
   let kills = 0, pickups = 0, sounds = 0, msgs = 0; const sndCount = {};
   const kinds = {};
   let tics = 0;

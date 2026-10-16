@@ -26,7 +26,9 @@ function buildCfg() {
   c.afkWarnTics = CONFIG.AFK_WARN * TICRATE; c.afkKickTics = CONFIG.AFK_KICK * TICRATE;
   c.elimTimeLimitTics = CONFIG.ELIM_SECONDS * TICRATE;
   c.finishGraceTics = CONFIG.FINISH_GRACE * TICRATE;
-  c.loadoutChance = CONFIG.LOADOUT_CHANCE; c.loadouts = CONFIG.START_WEAPONS.slice();
+  c.loadoutChance = CONFIG.LOADOUT_CHANCE; c.loadouts = Object.assign({}, CONFIG.START_WEAPONS);
+  c.staggerArenas = true;
+  c.arenaMin = CONFIG.ARENA_MIN;
   c.arena.altdeath = CONFIG.ITEMS_RESPAWN;
   c.arena.freelookAim = CONFIG.FREELOOK_AIM;
   c.arena.botSkill = CONFIG.BOT_SKILL;
@@ -96,21 +98,23 @@ function startDoomRound() {
   cvars(["mp_ignore_round_win_conditions 1"]);
   cvars(respawn ? CONFIG.RESPAWN_CVARS_ON : CONFIG.RESPAWN_CVARS_OFF);
   // any arena without teams: same-side kills there must not count as teamkills
-  cvars([rm.arenas.every((a) => a.teamsActive) ? "mp_teammates_are_enemies 0" : "mp_teammates_are_enemies 1"]);
+  cvars([rm.plan.every((it) => MODES[it.mk].teams) ? "mp_teammates_are_enemies 0" : "mp_teammates_are_enemies 1"]);
   guard("roundtime", () => Instance.SetRoundRemainingTime(CONFIG.ROUND_SECONDS + CONFIG.ROUND_SLACK));
   pendingKills.length = 0; elimKills.length = 0;
-  for (const a of rm.arenas) {
-    views.set(a, new ArenaView(a));
-    centerMsgs.set(a, { text: MODES[a.modeKey].name, until: Instance.GetGameTime() + 3 });
+  // the arenas themselves are built one per Doom tic (see arenaBuilt) so the server doesn't hitch
+  const desc = rm.plan.map((it) => `${it.L.title} (${it.grp.length}${it.loadout ? ", " + LOADOUTS[it.loadout].name : ""})`).join(", ");
+  sayAll(`DOOM: ${MODES[rm.modeKey].name} - ${desc}`);
+  log(`round ${rm.roundNumber}: ${rm.modeKey}, arenas ${rm.plan.map((it) => it.mk + ":" + it.grp.length + (it.loadout ? "+" + it.loadout : "")).join(" ")}`);
+}
+
+function onArenaBuilt(a) {
+  views.set(a, new ArenaView(a));
+  centerMsgs.set(a, { text: MODES[a.modeKey].name, until: Instance.GetGameTime() + 3 });
+  for (const p of a.players.values()) {
+    const pe = p.person;
+    if (!pe || pe.bot && !CONFIG.CS2_BOTS_PLAY) continue;
+    if (park(pe.slot) && p.mo) faceView(pe.slot, p.mo.angle);
   }
-  for (const pe of rm.people.values()) {
-    if (pe.status !== "playing") continue;
-    if (park(pe.slot) && pe.player && pe.player.mo) faceView(pe.slot, pe.player.mo.angle);
-  }
-  const desc = rm.arenas.map((a) => `${a.mapTitle} (${a.players.size})`).join(", ");
-  const extra = rm.loadout ? " - " + LOADOUTS[rm.loadout].name : "";
-  sayAll(`DOOM: ${MODES[rm.modeKey].name}${extra} - ${desc}`);
-  log(`round ${rm.roundNumber}: ${rm.modeKey}${rm.loadout ? " + " + rm.loadout : ""}, arenas ${rm.arenas.map((a) => a.modeKey + ":" + a.players.size).join(" ")}`);
 }
 
 function endDoomRound() {
@@ -248,6 +252,9 @@ function handleRoundEvents() {
       case "grace":
         for (const a of rm.arenas) if (!a.finished) centerMsgs.set(a, { text: `${Math.round(e.tics / TICRATE)} SECONDS LEFT`, until: Instance.GetGameTime() + 3 });
         break;
+      case "arenaBuilt":
+        onArenaBuilt(e.arena);
+        break;
       case "roundOver":
         endDoomRound();
         break;
@@ -370,7 +377,7 @@ function spectatorInput(pe, pk) {
 function frame(dt) {
   const now = Instance.GetGameTime();
   soundsThisTick = 0;
-  spawnBudget = 40;
+  spawnBudget = CONFIG.SPAWN_BUDGET;
   scanPeople(false);
   lobbyHud(now);
   if (phase === "lobby") {
@@ -430,6 +437,7 @@ function frame(dt) {
 }
 
 function think() {
+  hudBudget = CONFIG.HUD_BUDGET;
   flushSays();
   const now = Instance.GetGameTime();
   let dt = now - lastTime;
@@ -504,7 +512,8 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
   if (!CONFIG.CHAT_COMMANDS || !player) return;
   const slot = player.GetPlayerSlot();
   const pe = rm.person(slot);
-  const t = text.trim().toLowerCase();
+  let t = text.trim().toLowerCase();
+  if (t.startsWith("/")) t = "!" + t.slice(1);   // /doom works the same as !doom
   if (!player.IsBot()) sayHold();
   if (t.startsWith("!")) log(`chat command "${t}" from slot ${slot}`);
   if (t === "!spec" || t === "!spectate") {

@@ -34,7 +34,7 @@ Everything else is plain props:
 
 ## 3. How it plays
 
-- Players spawn in the lobby. After freeze time everyone on T/CT is split evenly into Doom arenas: up to four, 16 players each at most. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
+- Players spawn in the lobby. After freeze time everyone on T/CT goes into Doom arenas: one arena up to 15 players, two from 16 (8 + 8), four from 32 (8 each, up to 16 each), always split evenly. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
 - Each round picks one mode, and every arena plays it (team modes only when every arena gets players from both sides):
 
   | Mode | Rule | Chance |
@@ -45,7 +45,7 @@ Everything else is plain props:
   | Last man standing | One life each, last player standing | 10% |
 
 - Every arena gets its own random map.
-- About one round in four is a weapon-start round: everyone spawns with a shotgun, super shotgun, chaingun, rocket launcher, plasma rifle or chainsaw as well as the pistol.
+- Each arena has a small chance (12%) of a weapon start: everyone there spawns and respawns with a shotgun, super shotgun, chaingun, rocket launcher, plasma rifle, chainsaw or (rarely) the BFG, plus extra ammo, as well as the pistol.
 - When the first arena finishes, the others have 2 more minutes; then the leader wins.
 - Every frag is a real CS2 kill, credited to the killer, so the killfeed, scoreboard and rank plugins count it.
   - In respawn modes the CS2 kill happens about 1 second after the Doom death, and CS2 respawns the player.
@@ -67,7 +67,7 @@ Everything else is plain props:
 | R or Mouse 2 | next weapon |
 | F (inspect) | previous weapon |
 
-Chat: `!doom` (controls, shown on your own screen), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small).
+Chat (`!` or `/`): `!doom` (controls, shown on your own screen), `!spec` (watch other arenas), `!afk` (sit out), `!back` (rejoin), `!hud` (status bar size: normal, classic, small).
 
 Frags during CS2 warmup are not sent to the scoreboard.
 

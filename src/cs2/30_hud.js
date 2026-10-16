@@ -3,6 +3,7 @@
 // CSS class per panel per player. Every change is cached so only real changes are sent.
 
 let hudEnt;
+let hudBudget = Infinity;      // reset every think; when it runs out, the rest of the HUD changes go out next tick
 const hudCache = new Map();   // slot -> Map(panelId -> class)
 
 function hud() {
@@ -20,8 +21,10 @@ function hudSwap(slot, panel, cls) {
   if (!c) { c = new Map(); hudCache.set(slot, c); }
   const old = c.get(panel);
   if (old === cls) return;
+  if (hudBudget <= 0) return;
   const h = hud();
   if (!h) return;
+  hudBudget -= old && cls ? 2 : 1;
   if (old) h.SetHasClassForPlayer(slot, panel, old, false);
   if (cls) h.SetHasClassForPlayer(slot, panel, cls, true);
   c.set(panel, cls);

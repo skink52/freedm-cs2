@@ -2,7 +2,7 @@
 // Part 8: default settings (the CS2 script copies these and applies its own overrides)
 // ===================================================================================
 const DEFAULT_CFG = {
-  arenaMax: 16, arenaMin: 6, maxArenas: 4, minPlayersToStart: 2,
+  arenaMax: 16, arenaMin: 8, maxArenas: 4, minPlayersToStart: 2,
   modeWeights: { ffa: 35, tdm: 35, elim: 20, lms: 10 },
   ffaFrags: 20, tdmFrags: 32,
   areaPerPlayer: 420000, mapRepeatGap: 8, mapBlacklist: [],
@@ -12,6 +12,7 @@ const DEFAULT_CFG = {
   afkWarnTics: 20 * TICRATE, afkKickTics: 30 * TICRATE,
   elimTimeLimitTics: 240 * TICRATE,
   finishGraceTics: 120 * TICRATE,
-  loadoutChance: 0.25, loadouts: ['shotgun', 'ssg', 'chaingun', 'rocket', 'plasma', 'chainsaw'],
+  loadoutChance: 0.12, loadouts: { shotgun: 3, ssg: 3, chaingun: 3, rocket: 2, plasma: 2, chainsaw: 2, bfg: 1 },
+  staggerArenas: false,
   arena: { altdeath: true, itemRespawnTics: 30 * TICRATE, spawnProtectTics: 2 * TICRATE, freelookAim: true, viewBob: true, botSkill: 0.35, teamSuicidePenalty: true },
 };

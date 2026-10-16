@@ -1,4 +1,4 @@
-# FreeDM for CS2 — current status and handover (16 Oct 2026, 15:10 Adelaide)
+# FreeDM for CS2 — current status and handover (16 Oct 2026, 15:50 Adelaide)
 
 Repo: https://github.com/skink52/freedm-cs2 (source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -47,11 +47,18 @@ and Panorama files recompile. Zach doesn't code: plain-language explanations, li
   arenas came out 8v8, 6v10, 5v11, 13v3. Now worked out from the totals: even teams.
 - One mode for every arena: picked so the smallest arena qualifies, and a team mode only when every arena gets
   both sides (else re-picked without team modes). mp_teammates_are_enemies is 1 whenever any arena has no teams.
-- Arenas are split evenly (49 players -> 13/12/12/12) instead of "fill to 16" (gave 16/16/15/2). ARENA_MIN unused.
+- Arena sizes (15:50, Zach's rule): one arena up to 15, two from 16 (8+8 .. 16+15), four from 32 (8 each .. 16 each),
+  always even (ARENA_MIN 8). Never 3 arenas.
 - FINISH_GRACE 120: once the first arena finishes, the rest get 2 minutes (centre "120 SECONDS LEFT", top-right
   clock), then the leader wins.
-- Weapon-start rounds: LOADOUT_CHANCE 0.25, START_WEAPONS shotgun/ssg/chaingun/rocket/plasma/chainsaw (plus pistol),
-  on every (re)spawn; shown in the round chat line and on the bottom line during the countdown.
+- Weapon starts (15:50): rolled PER ARENA, LOADOUT_CHANCE 0.12 each; START_WEAPONS weights shotgun 3, ssg 3,
+  chaingun 3, rocket 2, plasma 2, chainsaw 2, bfg 1, with extra ammo (rockets 25, cells 200, bullets 200, shells 30);
+  given on every (re)spawn. Round chat line lists it per map; bottom line shows it during the countdown.
+- Round-start hitch fixed (15:50): arenas are planned at round start and built one per Doom tic (core
+  staggerArenas, events arenaBuilt -> onArenaBuilt parks that arena's players); HUD changes capped at HUD_BUDGET 600
+  per server tick; new props capped at SPAWN_BUDGET 20 per tick. Mock: 64 players max ~20 ms (was 128 ms),
+  10 players max 13 ms (was 22 ms). Players waiting for their arena have status 'planned'.
+- Chat commands accept `/` as well as `!` (/doom, /hud, /afk, /back, /spec).
 - AFK notice is no longer said in chat; the AFK player's own HUD shows "AFK - TYPE !BACK TO PLAY".
 - Console: `[freedm] round N: <mode>[ + loadout], arenas <mode>:<players> ...`.
 - Tests: test/mock_cs2.mjs `churn` option (joins with bot kicks and slot reuse, team swaps, leavers, CS2-style
@@ -62,8 +69,7 @@ and Panorama files recompile. Zach doesn't code: plain-language explanations, li
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
    Frags during CS2 warmup are deliberately not sent (console warning says so).
-3. Round-start hitch with many players (all arenas built in one tick) — consider spreading it over several ticks
-   if CS2 shows long "thinking for" lines at round start on full servers.
+3. Check the CS2 console at round start for "point_script ... thinking for" lines (spread out at 15:50).
 2. Zach's own map additions (triggers, teleports, trigger_hurts, meshes) were last captured in
    ref/mg_freedm_hammer_saved_4.vmap (his 22:33 15 Oct save); the map in his addon was regenerated from it 16 Oct 08:02.
    The map hasn't changed since. Rebuild only from his latest Hammer save.

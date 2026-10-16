@@ -7,13 +7,13 @@ const CONFIG = {
   MODE_WEIGHTS: { ffa: 35, tdm: 35, elim: 20, lms: 10 },
   FFA_FRAGS: 20,                 // first to this many (scaled down for small arenas)
   TDM_FRAGS: 32,                 // team total (scaled down for small arenas)
-  ARENA_MAX: 16, ARENA_MIN: 6, MAX_ARENAS: 4,   // players are spread evenly over as few arenas as fit them (ARENA_MIN is no longer used)
+  ARENA_MAX: 16, ARENA_MIN: 8, MAX_ARENAS: 4,   // one arena until there are 2 x ARENA_MIN players, then 2, then 4, spread evenly
   MIN_PLAYERS: 2,                // fewer than this on T/CT (bots count): no Doom round, players stay in the lobby
   ROUND_SECONDS: 600,            // the script sets the CS2 round timer to this at round start
   ELIM_SECONDS: 240,             // elimination / last man standing arenas end after this (most alive wins)
   FINISH_GRACE: 120,             // once the first arena finishes, the others have this many seconds left (0 = off)
-  LOADOUT_CHANCE: 0.25,          // chance a round is a "weapon start" round: everyone spawns with one of START_WEAPONS
-  START_WEAPONS: ["shotgun", "ssg", "chaingun", "rocket", "plasma", "chainsaw"],
+  LOADOUT_CHANCE: 0.12,          // chance, per arena, of a "weapon start": everyone there (re)spawns with one of START_WEAPONS
+  START_WEAPONS: { shotgun: 3, ssg: 3, chaingun: 3, rocket: 2, plasma: 2, chainsaw: 2, bfg: 1 },   // weapon: how likely
   ITEMS_RESPAWN: true,           // Doom "deathmatch 2.0": items respawn, weapons are picked up
   FRIENDLY_FIRE: false,
   FREELOOK_AIM: true,            // aim up/down with the mouse when autoaim finds nothing
@@ -61,6 +61,8 @@ const CONFIG = {
   TICK_INTERP: true,
   MAX_EFFECT_PROPS: 120,         // per arena: puffs, blood, explosions...
   MAX_SOUNDS_PER_TICK: 24,
+  SPAWN_BUDGET: 20,              // new props created per server tick at most (round start creates hundreds)
+  HUD_BUDGET: 600,               // HUD changes sent per server tick at most (the first draw for many players is spread out)
 
   // ---- entity names in the map
   HUD: "fdm_hud",
