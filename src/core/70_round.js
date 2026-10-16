@@ -82,12 +82,13 @@ class RoundManager {
   }
 
   // ------------------------------------------------------------------ round start
-  pickMode(arenaSizesList) {
+  // one mode for the whole round, so every arena plays the same thing and finishes on a similar clock
+  pickMode(arenaSizesList, excluded) {
     const w = Object.assign({}, this.cfg.modeWeights);
     const h = this.modeHistory;
     if (h.length >= 2 && h[h.length - 1] === h[h.length - 2]) w[h[h.length - 1]] = 0;
-    const largest = Math.max(...arenaSizesList);
-    for (const k of Object.keys(w)) if (largest < MODES[k].minPlayers) w[k] = 0;
+    const smallest = Math.min(...arenaSizesList);
+    for (const k of Object.keys(w)) if (smallest < MODES[k].minPlayers || (excluded && excluded.has(k))) w[k] = 0;
     let total = 0; for (const k in w) total += w[k];
     if (total <= 0) return 'ffa';
     let r = Math.random() * total;
@@ -124,20 +125,43 @@ class RoundManager {
       return false;
     }
     const sizes = arenaSizes(eligible.length, this.cfg);
-    const modeKey = forceMode || this.pickMode(sizes);
+    // a team mode only if every arena gets players from both sides; otherwise pick again without team modes
+    const excluded = new Set();
+    let modeKey, groups;
+    for (let tries = 0; tries < 3; tries++) {
+      modeKey = (tries === 0 && forceMode) || this.pickMode(sizes, excluded);
+      groups = this.splitGroups(eligible, sizes, MODES[modeKey].teams);
+      if (!MODES[modeKey].teams || groups.every((g) => g.some((p) => p.csTeam === 2) && g.some((p) => p.csTeam === 3) && g.length >= MODES[modeKey].minPlayers)) break;
+      for (const k of Object.keys(MODES)) if (MODES[k].teams) excluded.add(k);
+    }
     this.modeKey = modeKey;
     this.modeHistory.push(modeKey); if (this.modeHistory.length > 10) this.modeHistory.shift();
-    const mode = MODES[modeKey];
-    // split players
+    this.loadout = this.pickLoadout();
+    this.graceEnd = 0;
+    this.buildArenas(groups, modeKey);
+    this.state = 'running';
+    this.events.push({ type: 'roundStart', mode: modeKey, loadout: this.loadout, arenas: this.arenas });
+    return true;
+  }
+
+  pickLoadout() {
+    const keys = (this.cfg.loadouts || []).filter((k) => LOADOUTS[k]);
+    if (!keys.length || !(Math.random() < (this.cfg.loadoutChance || 0))) return null;
+    return keys[Math.floor(Math.random() * keys.length)];
+  }
+
+  splitGroups(eligible, sizes, teams) {
     let groups;
-    if (mode.teams) {
+    if (teams) {
       const ts = shuffle(eligible.filter((p) => p.csTeam === 2));
       const cts = shuffle(eligible.filter((p) => p.csTeam === 3));
       groups = sizes.map(() => []);
-      // proportional T quota per arena, remainder to the last
-      let tLeft = ts.length, ctLeft = cts.length;
+      // each arena gets the same share of Ts (worked out from the totals, cumulatively so rounding doesn't drift)
+      const T = ts.length, N = eligible.length;
+      let tLeft = ts.length, ctLeft = cts.length, cum = 0;
       sizes.forEach((sz, i) => {
-        let tq = i === sizes.length - 1 ? tLeft : Math.round(sz * ts.length / eligible.length);
+        const before = Math.round(T * cum / N); cum += sz;
+        let tq = i === sizes.length - 1 ? tLeft : Math.round(T * cum / N) - before;
         tq = Math.max(0, Math.min(tq, tLeft, sz));
         let cq = sz - tq;
         if (cq > ctLeft) { tq += cq - ctLeft; cq = ctLeft; }
@@ -153,7 +177,10 @@ class RoundManager {
       groups = []; let k = 0;
       for (const sz of sizes) { groups.push(all.slice(k, k + sz)); k += sz; }
     }
-    // build arenas
+    return groups;
+  }
+
+  buildArenas(groups, modeKey) {
     this.arenas = [];
     const used = new Set();
     groups.forEach((grp, i) => {
@@ -168,6 +195,7 @@ class RoundManager {
       const arena = new Arena(i, Object.assign({}, this.cfg.arena));
       arena.load(L);
       arena.modeKey = mk; arena.mode = MODES[mk];
+      arena.loadout = this.loadout;
       arena.teamsActive = MODES[mk].teams;
       arena.friendlyFire = this.cfg.friendlyFire;
       arena.mapId = L.id; arena.mapTitle = L.title;
@@ -183,9 +211,6 @@ class RoundManager {
       for (const pe of grp) pe.player.frozen = true;
     });
     this.arenas.forEach((a, i) => { a.index = i; });
-    this.state = 'running';
-    this.events.push({ type: 'roundStart', mode: modeKey, arenas: this.arenas });
-    return true;
   }
 
   joinArena(pe, arena, atStart) {
@@ -280,6 +305,12 @@ class RoundManager {
       this.arenaRules(a);
     }
     this.checkAfk();
+    // once the first arena is done, the others get a limited time so nobody waits long
+    if (this.cfg.finishGraceTics && !this.graceEnd && this.arenas.some((a) => a.finished) && this.arenas.some((a) => !a.finished)) {
+      this.graceEnd = this.time + this.cfg.finishGraceTics;
+      this.events.push({ type: 'grace', tics: this.cfg.finishGraceTics });
+    }
+    if (this.graceEnd && this.time >= this.graceEnd) this.timeUp();
     if (remainingSeconds !== undefined && remainingSeconds <= 0) this.timeUp();
     this.checkAllEnds();
   }

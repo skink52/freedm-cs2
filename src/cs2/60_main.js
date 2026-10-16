@@ -12,6 +12,7 @@ const elimKills = [];             // elimination modes: applied when the round e
 const allowDamage = new Set();
 const specEdges = new Map();      // slot -> { next, prev, arena }
 let realKillsBroken = false;
+let respawnFailures = 0;          // in a row; three means CS2 isn't respawning and real kills are switched off
 const centerMsgs = new Map();     // arena -> { text, until }
 
 function buildCfg() {
@@ -24,6 +25,8 @@ function buildCfg() {
   c.mapBlacklist = CONFIG.MAP_BLACKLIST.slice();
   c.afkWarnTics = CONFIG.AFK_WARN * TICRATE; c.afkKickTics = CONFIG.AFK_KICK * TICRATE;
   c.elimTimeLimitTics = CONFIG.ELIM_SECONDS * TICRATE;
+  c.finishGraceTics = CONFIG.FINISH_GRACE * TICRATE;
+  c.loadoutChance = CONFIG.LOADOUT_CHANCE; c.loadouts = CONFIG.START_WEAPONS.slice();
   c.arena.altdeath = CONFIG.ITEMS_RESPAWN;
   c.arena.freelookAim = CONFIG.FREELOOK_AIM;
   c.arena.botSkill = CONFIG.BOT_SKILL;
@@ -65,8 +68,23 @@ function scanPeople(force) {
 function dropPerson(slot) {
   rm.removePerson(slot);
   parked.delete(slot);
-  hudCache.delete(slot);
+  hudReset(slot);
   specEdges.delete(slot);
+  forgetKills(slot);
+}
+
+// someone left or changed team: their pending deaths are dropped, and kills they made go to the world
+// (a newcomer can take the same slot within a second and must not get the credit)
+function forgetKills(slot) {
+  for (let i = pendingKills.length - 1; i >= 0; i--) {
+    const k = pendingKills[i];
+    if (k.victim === slot) { if (k.player) k.player.respawnGate = true; pendingKills.splice(i, 1); }
+    else if (k.killer === slot) k.killer = null;
+  }
+  for (let i = elimKills.length - 1; i >= 0; i--) {
+    if (elimKills[i].victim === slot) elimKills.splice(i, 1);
+    else if (elimKills[i].killer === slot) elimKills[i].killer = null;
+  }
 }
 
 // ---------------------------------------------------------------- round flow
@@ -77,7 +95,8 @@ function startDoomRound() {
   const respawn = MODES[rm.modeKey].respawn;
   cvars(["mp_ignore_round_win_conditions 1"]);
   cvars(respawn ? CONFIG.RESPAWN_CVARS_ON : CONFIG.RESPAWN_CVARS_OFF);
-  cvars([MODES[rm.modeKey].teams ? "mp_teammates_are_enemies 0" : "mp_teammates_are_enemies 1"]);
+  // any arena without teams: same-side kills there must not count as teamkills
+  cvars([rm.arenas.every((a) => a.teamsActive) ? "mp_teammates_are_enemies 0" : "mp_teammates_are_enemies 1"]);
   guard("roundtime", () => Instance.SetRoundRemainingTime(CONFIG.ROUND_SECONDS + CONFIG.ROUND_SLACK));
   pendingKills.length = 0; elimKills.length = 0;
   for (const a of rm.arenas) {
@@ -89,7 +108,9 @@ function startDoomRound() {
     if (park(pe.slot) && pe.player && pe.player.mo) faceView(pe.slot, pe.player.mo.angle);
   }
   const desc = rm.arenas.map((a) => `${a.mapTitle} (${a.players.size})`).join(", ");
-  sayAll(`DOOM: ${MODES[rm.modeKey].name} - ${desc}`);
+  const extra = rm.loadout ? " - " + LOADOUTS[rm.loadout].name : "";
+  sayAll(`DOOM: ${MODES[rm.modeKey].name}${extra} - ${desc}`);
+  log(`round ${rm.roundNumber}: ${rm.modeKey}${rm.loadout ? " + " + rm.loadout : ""}, arenas ${rm.arenas.map((a) => a.modeKey + ":" + a.players.size).join(" ")}`);
 }
 
 function endDoomRound() {
@@ -137,7 +158,8 @@ function cleanupRound(entitiesGone) {
 function csKill(victimSlot, killerSlot) {
   const vp = pawnOf(victimSlot);
   if (!vp || !vp.IsAlive()) return false;
-  let attacker = killerSlot !== undefined && killerSlot !== victimSlot ? pawnOf(killerSlot) : vp;
+  // killer null = the killer left (world kill); killer = victim = Doom suicide
+  let attacker = killerSlot === null ? undefined : killerSlot !== undefined && killerSlot !== victimSlot ? pawnOf(killerSlot) : vp;
   if (attacker && !attacker.IsAlive()) attacker = controllerOf(killerSlot) || undefined;
   allowDamage.add(victimSlot);
   guard("cskill", () => vp.TakeDamage({
@@ -179,7 +201,13 @@ function processKills(now) {
       // waiting for CS2 to respawn the pawn
       if (now - k.at > 8) {
         k.player.respawnGate = true; pendingKills.splice(i, 1);
-        if (!realKillsBroken) { realKillsBroken = true; log("CS2 did not respawn a killed player within 8 s - check mp_respawn_on_death_t/ct. Real kills are off until the map changes."); }
+        // only count it when the player is still here, still in that arena and still waiting for CS2
+        const pe = rm.person(k.victim), c = controllerOf(k.victim);
+        const still = pe && pe.player === k.player && pe.status === "playing" && pe.arena && pe.arena.mode.respawn && !pe.arena.finished && c && c.IsConnected();
+        if (!still) continue;
+        respawnFailures++;
+        log(`CS2 did not respawn ${pe.name} within 8 s after a scripted kill (${respawnFailures} in a row)`);
+        if (respawnFailures >= 3 && !realKillsBroken) { realKillsBroken = true; log("CS2 is not respawning killed players - check mp_respawn_on_death_t/ct. Real kills are off until the map changes."); }
       }
       continue;
     }
@@ -217,8 +245,8 @@ function handleRoundEvents() {
       case "afkWarn":
         if (e.person.player) { e.person.player.message = "MOVE OR YOU WILL BE MARKED AFK"; e.person.player.messageTime = e.person.arena ? e.person.arena.leveltime : 0; }
         break;
-      case "afk":
-        sayAll(`${e.person.name} is AFK and now spectating (type !back to play next round)`);
+      case "grace":
+        for (const a of rm.arenas) if (!a.finished) centerMsgs.set(a, { text: `${Math.round(e.tics / TICRATE)} SECONDS LEFT`, until: Instance.GetGameTime() + 3 });
         break;
       case "roundOver":
         endDoomRound();
@@ -234,11 +262,14 @@ function infoFor(pe, now) {
   if (!a) return { line1: "", line2: "", center: "", spec: "" };
   const mode = MODES[a.modeKey];
   let line1 = mode.name;
-  if (a.target) line1 += " - FIRST TO " + a.target;
-  else if (!mode.respawn && rm.cfg.elimTimeLimitTics) {
-    const left = Math.max(0, Math.ceil((rm.cfg.elimTimeLimitTics - a.time) / TICRATE));
-    line1 += " " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
-  }
+  // clock: the elimination limit and/or the time left once another arena has finished
+  let left = Infinity;
+  if (!mode.respawn && rm.cfg.elimTimeLimitTics) left = Math.ceil((rm.cfg.elimTimeLimitTics - a.time) / TICRATE);
+  if (rm.graceEnd && !a.finished) left = Math.min(left, Math.ceil((rm.graceEnd - rm.time) / TICRATE));
+  const clock = left === Infinity ? "" : Math.floor(Math.max(0, left) / 60) + ":" + String(Math.max(0, left) % 60).padStart(2, "0");
+  if (a.target && clock) line1 = "FIRST TO " + a.target + " - " + clock + " LEFT";
+  else if (a.target) line1 += " - FIRST TO " + a.target;
+  else if (clock) line1 += " " + clock;
   let line2 = "";
   if (a.teamsActive) {
     if (a.modeKey === "elim") {
@@ -263,6 +294,8 @@ function infoFor(pe, now) {
     const t = a.players.get(pe.spec.target);
     spec = t ? "SPECTATING " + t.name.slice(0, 20) : "SPECTATING";
   } else if (pe.player && pe.player.playerstate === "dead" && a.mode.respawn) spec = "RESPAWNING...";
+  if (pe.afk) spec = "AFK - TYPE !BACK TO PLAY";
+  else if (a.countdown > 0 && a.loadout) spec = LOADOUTS[a.loadout].name;
   if (!spec && pe.helpUntil > now) spec = "CHAT: !SPEC  !AFK  !BACK  !HUD";
   return { line1, line2, center, spec, sbar: pe.hudPos };
 }
@@ -431,6 +464,7 @@ Instance.OnPlayerTeamChanged(({ player }) => guard("team", () => {
   if (slot === undefined) return;
   const pe = rm.person(slot);
   if (pe && pe.status !== "none") { rm.leaveArena(pe, "team change"); unpark(slot); }
+  forgetKills(slot);
   scanPeople(true);
 }));
 Instance.OnPlayerReset(({ player }) => guard("reset", () => {
@@ -441,7 +475,7 @@ Instance.OnPlayerReset(({ player }) => guard("reset", () => {
   if (pe.status === "playing" && pe.player) {
     park(slot);
     const k = pendingKills.findIndex((x) => x.victim === slot && x.done);
-    if (k >= 0) pendingKills.splice(k, 1);
+    if (k >= 0) { pendingKills.splice(k, 1); respawnFailures = 0; }
     pe.player.respawnGate = true; pe.player.respawnNow = true;
   } else if (pe.status === "none" && phase === "running") {
     if (rm.lateJoin(pe)) { park(slot); if (pe.player && pe.player.mo) faceView(slot, pe.player.mo.angle); }

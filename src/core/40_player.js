@@ -37,6 +37,24 @@ function playerReborn(p) {
   p.playerstate = 'live';
 }
 
+// round modifier: everyone (re)spawns with this weapon as well as the fist and pistol
+const LOADOUTS = {
+  shotgun: { name: 'SHOTGUN START', weapon: WP_SHOTGUN, ammo: [50, 20, 0, 0] },
+  ssg: { name: 'SUPER SHOTGUN START', weapon: WP_SUPERSHOTGUN, ammo: [50, 20, 0, 0] },
+  chaingun: { name: 'CHAINGUN START', weapon: WP_CHAINGUN, ammo: [100, 0, 0, 0] },
+  rocket: { name: 'ROCKET LAUNCHER START', weapon: WP_MISSILE, ammo: [50, 0, 0, 10] },
+  plasma: { name: 'PLASMA RIFLE START', weapon: WP_PLASMA, ammo: [50, 0, 80, 0] },
+  chainsaw: { name: 'CHAINSAW START', weapon: WP_CHAINSAW, ammo: [50, 0, 0, 0] },
+};
+
+function applyLoadout(p, key) {
+  const L = LOADOUTS[key];
+  if (!L) return;
+  p.weaponowned[L.weapon] = true;
+  for (let i = 0; i < 4; i++) p.ammo[i] = Math.max(p.ammo[i], Math.min(L.ammo[i], p.maxammo[i]));
+  p.readyweapon = L.weapon; p.pendingweapon = L.weapon;
+}
+
 function spawnPlayerAt(p, x, y, angle) {
   if (p.mo && !p.mo.removed) { p.mo.player = null; }
   const mo = spawnMobj(x, y, ONFLOORZ, MT.PLAYER);

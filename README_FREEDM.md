@@ -35,7 +35,7 @@ Everything else is plain props:
 ## 3. How it plays
 
 - Players spawn in the lobby. After freeze time everyone on T/CT is split into Doom arenas: up to four, filled to 16 first, minimum 6. A round needs at least 2 players on T/CT (bots count); the lobby shows what it is waiting for and the time left in a running round.
-- Each round picks one mode:
+- Each round picks one mode, and every arena plays it (team modes only when every arena gets players from both sides):
 
   | Mode | Rule | Chance |
   |---|---|---|
@@ -45,12 +45,14 @@ Everything else is plain props:
   | Last man standing | One life each, last player standing | 10% |
 
 - Every arena gets its own random map.
+- About one round in four is a weapon-start round: everyone spawns with a shotgun, super shotgun, chaingun, rocket launcher, plasma rifle or chainsaw as well as the pistol.
+- When the first arena finishes, the others have 2 more minutes; then the leader wins.
 - Every frag is a real CS2 kill, credited to the killer, so the killfeed, scoreboard and rank plugins count it.
   - In respawn modes the CS2 kill happens about 1 second after the Doom death, and CS2 respawns the player.
   - In elimination modes the kills are applied when the round ends, so eliminated players can keep watching.
 - When an arena finishes, its players watch the arenas still fighting. Mouse 1 / mouse 2 change player, E or Space changes arena.
 - The CS2 round ends when every arena is done, or after 10 minutes.
-- AFK: after 20 seconds idle you get a warning. At 30 seconds you are moved to spectating and skipped next round until you press a key or type `!back`.
+- AFK: after 20 seconds idle you get a warning. At 30 seconds you are moved to spectating and skipped next round until you press a key or type `!back`. Both notices show on that player's own screen, not in chat.
 - CS2 bots on the server play using the Doom bot AI. `bot_quota 6` fills a test server.
 
 ## Controls

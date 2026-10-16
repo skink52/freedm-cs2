@@ -11,5 +11,7 @@ const DEFAULT_CFG = {
   minRespawnTics: TICRATE, autoRespawnTics: 3 * TICRATE, elimSpectateTics: 3 * TICRATE,
   afkWarnTics: 20 * TICRATE, afkKickTics: 30 * TICRATE,
   elimTimeLimitTics: 240 * TICRATE,
+  finishGraceTics: 120 * TICRATE,
+  loadoutChance: 0.25, loadouts: ['shotgun', 'ssg', 'chaingun', 'rocket', 'plasma', 'chainsaw'],
   arena: { altdeath: true, itemRespawnTics: 30 * TICRATE, spawnProtectTics: 2 * TICRATE, freelookAim: true, viewBob: true, botSkill: 0.35, teamSuicidePenalty: true },
 };

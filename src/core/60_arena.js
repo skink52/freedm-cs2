@@ -86,6 +86,7 @@ class Arena {
         if (this.bodyque.length > 32) { const old = this.bodyque.shift(); if (!old.removed) removeMobj(old); }
       }
       playerReborn(p);
+      if (this.loadout) applyLoadout(p, this.loadout);
       if (!spot) spot = this.pickSpawnSpot(p);
       spawnPlayerAt(p, spot.x, spot.y, spot.angle);
       p.protectUntil = this.leveltime + (this.cfg.spawnProtectTics || 0);

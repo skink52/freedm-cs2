@@ -18,7 +18,7 @@ const CSDamageTypes = { GENERIC: 0, BULLET: 2, BLAST: 64 };
 const CSDamageFlags = { NONE: 0, PREVENT_DEATH: 8, FORCE_DEATH: 16, IGNORE_ARMOR: 64 };
 
 let time = 0;
-const stats = { moves: 0, teleports: 0, setModel: 0, hudCalls: 0, sounds: 0, skins: 0, spawned: 0, kills: 0, scriptKills: 0, errors: [], msgs: [], cvars: {}, says: [] };
+const stats = { teamkills: 0, churn: { join: 0, kick: 0, kickDead: 0, swap: 0, leave: 0 }, moves: 0, teleports: 0, setModel: 0, hudCalls: 0, sounds: 0, skins: 0, spawned: 0, kills: 0, scriptKills: 0, errors: [], msgs: [], cvars: {}, says: [] };
 
 class Entity {
   constructor(name, cls, pos) { this.name = name; this.cls = cls; this.pos = pos || { x: 0, y: 0, z: 0 }; this.ang = { pitch: 0, yaw: 0, roll: 0 }; this.valid = true; }
@@ -90,6 +90,13 @@ class Pawn extends Entity {
   die(attacker) {
     this.alive = false; this.valid = false;
     stats.kills++;
+    // scoreboard like CS2: kill +1, teamkill -1 unless teammates are enemies, self/world = death only
+    const k = attacker && attacker.ctrl ? attacker.ctrl : attacker instanceof Controller ? attacker : null;
+    this.ctrl.deaths++;
+    if (k && k !== this.ctrl) {
+      if (k.team === this.ctrl.team && cvar('mp_teammates_are_enemies') !== '1') { k.kills--; stats.teamkills++; }
+      else k.kills++;
+    }
     hooks.OnPlayerKill && hooks.OnPlayerKill({ player: this, attacker });
     const team = this.ctrl.team;
     const respawn = cvar(team === 2 ? 'mp_respawn_on_death_t' : 'mp_respawn_on_death_ct') === '1';
@@ -97,11 +104,11 @@ class Pawn extends Entity {
   }
 }
 class Controller {
-  constructor(slot, name, team, bot) { this.slot = slot; this.name = name; this.team = team; this.bot = bot; this.connected = true; this.pawn = new Pawn(this); this.score = 0; this.brain = { turn: 0 }; }
+  constructor(slot, name, team, bot, noPawn) { this.slot = slot; this.name = name; this.team = team; this.bot = bot; this.connected = true; this.pawn = noPawn ? null : new Pawn(this); this.score = 0; this.kills = 0; this.deaths = 0; this.brain = { turn: 0 }; }
   GetPlayerSlot() { return this.slot; } GetPlayerName() { return this.name; } GetPlayerPawn() { return this.pawn && this.pawn.valid ? this.pawn : undefined; }
   IsBot() { return this.bot; } IsConnected() { return this.connected; } GetTeamNumber() { return this.team; }
   AddScore(n) { this.score += n; } GetScore() { return this.score || 0; } JoinTeam(t) { this.team = t; } IsValid() { return this.connected; }
-  respawn() { this.pawn = new Pawn(this); hooks.OnPlayerReset && hooks.OnPlayerReset({ player: this.pawn }); }
+  respawn() { if (!this.connected) return; this.pawn = new Pawn(this); hooks.OnPlayerReset && hooks.OnPlayerReset({ player: this.pawn }); }
 }
 const players = [];
 for (let i = 0; i < HUMANS + BOTS; i++) players.push(new Controller(i, (i < HUMANS ? 'human' : 'bot') + i, i % 2 ? 3 : 2, i >= HUMANS));
@@ -183,7 +190,7 @@ while (time < SECONDS) {
       hooks.OnBeginRoundRestart && hooks.OnBeginRoundRestart();
       for (const e of spawnedEnts) e.valid = false;
       spawnedEnts.length = 0;
-      for (const c of players) { c.pawn = new Pawn(c); hooks.OnPlayerReset && hooks.OnPlayerReset({ player: c.pawn }); }
+      for (const c of players) if (c.connected) { c.pawn = new Pawn(c); hooks.OnPlayerReset && hooks.OnPlayerReset({ player: c.pawn }); }
       freezeUntil = time + 2; roundEnd = time + 600; roundEnded = false;
       hooks.OnRoundStart && hooks.OnRoundStart();
     });
@@ -192,8 +199,46 @@ while (time < SECONDS) {
     const s = performance.now();
     try { thinkFn(); } catch (err) { stats.errors.push('THROW ' + err.stack); break; }
     const d = performance.now() - s; thinkMs += d; maxThink = Math.max(maxThink, d);
+    if (d > 16) (stats.slow ||= []).push(`${time.toFixed(1)}s:${d.toFixed(0)}ms`);
   }
   if (OPTS.includes('disc') && Math.abs(time - 60) < TICK / 2) { const c = players[3]; c.connected = false; hooks.OnPlayerDisconnect({ playerSlot: c.slot }); }
+  // churn: people joining mid-round (CS2 kicks a bot to make room and the newcomer reuses its slot), team swaps, leavers
+  if (OPTS.includes('churn') && time > 15 && Math.floor(time / 5) !== Math.floor((time - TICK) / 5)) churn();
+}
+function disconnect(c) { c.connected = false; if (c.pawn) c.pawn.valid = false; hooks.OnPlayerDisconnect && hooks.OnPlayerDisconnect({ playerSlot: c.slot }); }
+function churn() {
+  const live = players.filter((c) => c.connected);
+  const r = Math.random();
+  if (r < 0.5) {
+    // a human joins: kick a bot (often one that is dead and waiting to respawn) and reuse the slot
+    const bots = live.filter((c) => c.bot);
+    let slot = -1;
+    if (bots.length) {
+      const dead = bots.filter((c) => !c.pawn || !c.pawn.alive);
+      const victim = (dead.length && Math.random() < 0.7 ? dead : bots)[Math.floor(Math.random() * (dead.length && Math.random() < 0.7 ? dead.length : bots.length))] || bots[0];
+      if (!victim.pawn || !victim.pawn.alive) stats.churn.kickDead++;
+      disconnect(victim); stats.churn.kick++; slot = victim.slot;
+    } else { const used = new Set(live.map((c) => c.slot)); for (let i = 0; i < 64; i++) if (!used.has(i)) { slot = i; break; } }
+    if (slot < 0) return;
+    const c = new Controller(slot, 'late' + slot, 0, false, true);
+    players.push(c); stats.churn.join++;
+    hooks.OnPlayerActivate && hooks.OnPlayerActivate({ player: c });
+    later(2, () => { if (!c.connected) return; c.team = Math.random() < 0.5 ? 2 : 3; hooks.OnPlayerTeamChanged && hooks.OnPlayerTeamChanged({ player: c, newTeam: c.team }); later(1, () => c.respawn()); });
+  } else if (r < 0.75) {
+    const humans = live.filter((c) => !c.bot && c.slot !== 0);
+    const c = humans[Math.floor(Math.random() * humans.length)] || live[Math.floor(Math.random() * live.length)];
+    if (!c || c.slot === 0) return;
+    stats.churn.swap++;
+    if (c.pawn) { c.pawn.alive = false; c.pawn.valid = false; }
+    c.team = c.team === 2 ? 3 : 2;
+    hooks.OnPlayerTeamChanged && hooks.OnPlayerTeamChanged({ player: c, newTeam: c.team });
+    const respawn = cvar(c.team === 2 ? 'mp_respawn_on_death_t' : 'mp_respawn_on_death_ct') === '1';
+    if (respawn) later(1, () => c.respawn());
+  } else {
+    const humans = live.filter((c) => !c.bot && c.slot !== 0);
+    const c = humans[Math.floor(Math.random() * humans.length)];
+    if (c) { disconnect(c); stats.churn.leave++; }
+  }
 }
 const cams = players.filter((c) => c.pawn && c.pawn.cam).map((c) => c.pawn.cam.mode);
 console.log('round end reasons', JSON.stringify(winReasons));
@@ -201,9 +246,14 @@ console.log(`simulated ${SECONDS}s with ${HUMANS} humans + ${BOTS} bots: ${round
 console.log(`props spawned ${stats.spawned}, moves ${stats.moves}, teleports ${stats.teleports}, setModel ${stats.setModel}, skins ${stats.skins}, hud calls ${stats.hudCalls}, sounds ${stats.sounds}`);
 console.log(`CS2 kills ${stats.kills} (scripted ${stats.scriptKills}), camera modes ${JSON.stringify(cams)}`);
 console.log(`think time: avg ${(thinkMs / (SECONDS * 64)).toFixed(3)} ms, max ${maxThink.toFixed(1)} ms`);
+console.log('think ticks over 16 ms:', (stats.slow || []).length, (stats.slow || []).slice(0, 12).join(' '));
 console.log('cvars', JSON.stringify(stats.cvars));
 console.log('says:', stats.says.slice(0, 8).join('\n      '));
 console.log('scores', players.map((c) => c.score).join(','));
+const live = players.filter((c) => c.connected);
+console.log(`scoreboard kills ${players.reduce((n, c) => n + c.kills, 0)} (teamkill penalties ${stats.teamkills}), connected ${live.length} (${live.filter((c) => !c.bot).length} humans), churn ${JSON.stringify(stats.churn)}`);
+const off = stats.msgs.find((m) => /Real kills are off/.test(m));
+console.log(off ? 'REAL KILLS SWITCHED OFF: ' + off : 'real kills stayed on');
 if (stats.errors.length) { console.log('ERRORS/WARNINGS:'); for (const e of [...new Set(stats.errors)].slice(0, 20)) console.log('  ' + e); }
 console.log("hud by panel", JSON.stringify(Object.entries(stats.hudBy || {}).sort((a,b)=>b[1]-a[1]).slice(0,14)));
 console.log("status bar swaps", (stats.hudBy || {}).fdm_sbarbox || 0);

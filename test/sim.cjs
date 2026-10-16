@@ -7,7 +7,7 @@ const t0 = Date.now();
 let totalTics = 0;
 for (let r = 0; r < ROUNDS; r++) {
   rm.startRound(MODE);
-  const desc = rm.arenas.map((a) => `${a.mapId}:${a.modeKey}:${a.players.size}p:target${a.target}`).join(' ');
+  const desc = rm.arenas.map((a) => `${a.mapId}:${a.modeKey}:${a.players.size}p:target${a.target}`).join(' ') + (rm.loadout ? ' loadout=' + rm.loadout : '');
   let kills = 0, pickups = 0, sounds = 0, msgs = 0; const sndCount = {};
   const kinds = {};
   let tics = 0;
@@ -25,7 +25,7 @@ for (let r = 0; r < ROUNDS; r++) {
     rm.events.length = 0;
   }
   totalTics += tics;
-  const res = rm.arenas.map((a) => a.result && a.result.text).join(' | ');
+  const res = rm.arenas.map((a) => (a.result && a.result.text) + ' @' + Math.round(a.finishedAt / 35) + 's' + (a.result && a.result.timeout ? ' (time)' : '')).join(' | ');
   console.log('  top sounds', JSON.stringify(Object.entries(sndCount).sort((a,b)=>b[1]-a[1]).slice(0,5)));
   console.log(`round ${r + 1}: ${desc}\n  ${(tics / 35).toFixed(0)}s kills=${kills} msgs=${msgs} sounds=${sounds} -> ${res}\n  ${JSON.stringify(kinds)}`);
 }

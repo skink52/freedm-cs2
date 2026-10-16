@@ -11,6 +11,9 @@ const CONFIG = {
   MIN_PLAYERS: 2,                // fewer than this on T/CT (bots count): no Doom round, players stay in the lobby
   ROUND_SECONDS: 600,            // the script sets the CS2 round timer to this at round start
   ELIM_SECONDS: 240,             // elimination / last man standing arenas end after this (most alive wins)
+  FINISH_GRACE: 120,             // once the first arena finishes, the others have this many seconds left (0 = off)
+  LOADOUT_CHANCE: 0.25,          // chance a round is a "weapon start" round: everyone spawns with one of START_WEAPONS
+  START_WEAPONS: ["shotgun", "ssg", "chaingun", "rocket", "plasma", "chainsaw"],
   ITEMS_RESPAWN: true,           // Doom "deathmatch 2.0": items respawn, weapons are picked up
   FRIENDLY_FIRE: false,
   FREELOOK_AIM: true,            // aim up/down with the mouse when autoaim finds nothing
