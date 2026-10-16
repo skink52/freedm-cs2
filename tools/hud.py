@@ -223,10 +223,12 @@ rule('.XHair', width=px(7, SX), height=px(7, SY), horizontal_align='center', ver
 sbarbox = P('fdm_sbarbox', 'SBarBox', [P('fdm_team', 'Team'), P('fdm_sbar', 'SBar', sbar_children)])
 # never shown: these make CS2 compile the loading screen picture, the radar and the map icon with the HUD
 # (the game looks for map_icons/screenshots/1080p/mg_freedm_png, overheadmaps/mg_freedm_radar_psd, map_icon_mg_freedm)
-for cls, src in (('FdmPre1', 'map_icons/screenshots/1080p/mg_freedm.png'), ('FdmPre2', 'overheadmaps/mg_freedm_radar.psd'),
-                 ('FdmPre3', 'map_icons/map_icon_mg_freedm.svg')):
+PRELOAD = (('FdmPre1', 'map_icons/screenshots/1080p/mg_freedm.png'), ('FdmPre2', 'overheadmaps/mg_freedm_radar.psd'),
+           ('FdmPre3', 'map_icons/map_icon_mg_freedm.svg'), ('FdmPre4', 'map_icons/screenshots/1080p/mg_freedm_1.png'),
+           ('FdmPre5', 'map_icons/screenshots/1080p/mg_freedm_2.png'))
+for cls, src in PRELOAD:
     rule('.' + cls, width='1px', height='1px', opacity='0', visibility='collapse', background_image='url("file://{images}/%s")' % src)
-preload = P(None, 'FdmPreload', [P(None, 'FdmPre1'), P(None, 'FdmPre2'), P(None, 'FdmPre3')])
+preload = P(None, 'FdmPreload', [P(None, cls) for cls, _ in PRELOAD])
 rule('.FdmPreload', width='1px', height='1px', visibility='collapse')
 root = P('fdm_root', 'FdmRoot', [P('fdm_flash', 'Flash'), screen, sbarbox, preload])
 # the root panel may not carry an id (CustomHud validation), so fdm_root sits inside a plain full-screen panel

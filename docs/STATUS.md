@@ -88,7 +88,12 @@ and Panorama files recompile. Zach doesn't code: plain-language explanations, li
   Doom font (map_icons/screenshots/1080p/mg_freedm.png), a Doom-automap overview of all 32 levels as a flat PSD
   (overheadmaps/mg_freedm_radar.psd), a white map icon (map_icons/map_icon_mg_freedm.svg), and
   game/csgo_addons/mg_freedm/resource/overviews/mg_freedm.txt (pos_x -15856, pos_y 10458, scale 29.188).
-  The HUD stylesheet references the three images from hidden panels so CS2 compiles them with the HUD.
+  The HUD stylesheet references the images from hidden panels so CS2 compiles them with the HUD.
+  20:44 test: icon shows on the loading screen and all three compiled, but the loading screen kept CS2's default
+  art - it cycles NUMBERED screenshots (Valve maps have <map>_1.._4 plus the plain one). Added mg_freedm_1.png
+  (controls) and mg_freedm_2.png (overview + modes), both preloaded too. Recheck.
+  No in-game minimap is expected: sv_disable_radar 1 stays (CS2 pawns sit parked in the booth, so the radar would
+  show everyone there, not their Doom positions).
   NOT YET VERIFIED IN CS2: check the "Failed loading resource ... overheadmaps / screenshots / map_icon" and
   "CMapOverview::SetMap" lines are gone and the loading screen shows the picture.
 - Scoreboard: per-player option `!hud scores` hides the Doom HUD while the scoreboard (or end-of-match) is open;

@@ -81,8 +81,29 @@ def loading_screen():
     paste_text(base, 'GAME CONTENT FROM THE FREEDOOM PROJECT (BSD LICENCE)', 130, 1040, 2, grey)
     path = os.path.join(OUT, 'panorama/images/map_icons/screenshots/1080p')
     os.makedirs(path, exist_ok=True)
+    # the loading screen cycles the numbered screenshots (like Valve's maps); the plain one is used for the map tile
     base.convert('RGB').save(os.path.join(path, MAP + '.png'))
+    base.convert('RGB').save(os.path.join(path, MAP + '_1.png'))
     return base
+
+def overview_screen(radar_img):
+    W, H = 1920, 1080
+    base = Image.new('RGBA', (W, H), (0, 0, 0, 255))
+    r = radar_img.resize((1000, 1000), Image.LANCZOS)
+    base.alpha_composite(r, (900, 40))
+    gold, white, grey = (255, 200, 60), (235, 235, 235), (165, 165, 165)
+    logo = Image.open(os.path.join(FD, 'graphics/titlepic/freedm_title.png')).convert('RGBA')
+    logo = logo.resize((int(logo.width * 0.85), int(logo.height * 0.85)), Image.LANCZOS)
+    base.alpha_composite(logo, (60, 40))
+    y = 440
+    paste_text(base, '32 FREEDM LEVELS', 110, y, 5, gold); y += 80
+    for line in ['UP TO 64 PLAYERS, 4 ARENAS', 'SAME MODE IN EVERY ARENA', '', 'FREE FOR ALL', 'TEAM DEATHMATCH',
+                 'TEAM ELIMINATION', 'LAST MAN STANDING', '', 'RANDOM WEAPON STARTS', 'LATE JOINERS REPLACE BOTS']:
+        if line: paste_text(base, line, 110, y, 3, white)
+        y += 40
+    paste_text(base, 'GAME CONTENT FROM THE FREEDOOM PROJECT (BSD LICENCE)', 110, 1040, 2, grey)
+    path = os.path.join(OUT, 'panorama/images/map_icons/screenshots/1080p')
+    base.convert('RGB').save(os.path.join(path, MAP + '_2.png'))
 
 # ---------------------------------------------------------------- radar: every level as a Doom automap
 def write_psd(path, img):
@@ -135,6 +156,7 @@ def radar():
     os.makedirs(path, exist_ok=True)
     write_psd(os.path.join(path, MAP + '_radar.psd'), img)
     img.convert('RGB').save(os.path.join(OUT, '_gen', 'radar_preview.png'))
+    overview_screen(img)
     ov = os.path.join(GAME_OUT, 'resource/overviews')
     os.makedirs(ov, exist_ok=True)
     with open(os.path.join(ov, MAP + '.txt'), 'w', newline='\n') as f:
