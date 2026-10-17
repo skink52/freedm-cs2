@@ -1,44 +1,37 @@
-[h1]Hellmatch CS2[/h1]
-Retro 90s-style deathmatch running inside Counter-Strike 2. No plugins needed: the whole game runs in the map's own script.
-To play: subscribe, then start it from Play > Workshop Maps (add bots with bot_quota), or join a community server running it.
+[h1]Hellmatch[/h1]
+A retro 90s-style deathmatch that runs inside one CS2 map. Up to 64 players, split into 1 to 4 arenas, play Free for All, Team Deathmatch, Team Elimination, Last Man Standing or Boss Battle (co-op against waves of monsters) on 32 classic levels, with the old-school movement, weapons, pickups and status bar. No plugins: the whole game is the map's own script. To try it, subscribe and start it from Play > Workshop Maps with a few bots (bot_quota 6).
 
-[h2]What you get[/h2]
+[h2]Server requirements[/h2]
 [list]
-[*]32 classic deathmatch levels (FreeDM, from the Freedoom project), rebuilt for CS2
-[*]Up to 64 players across 1 to 4 arenas: one arena under 16 players, two from 16, four from 32
-[*]A new mode every round, the same in every arena: Free for All, Team Deathmatch (T = red, CT = blue), Boss Battle, Team Elimination, Last Man Standing
-[*]Boss Battle: co-op against waves of monsters (zombies, serpentipedes, flesh worms, trilobites, pain bringers, dark soldiers, combat slugs, technospiders, flame bringers...) and then a boss, with 3 lives each
-[*]Monsters in deathmatch: now and then an arena has creatures loose in the level, fighting everyone (and each other)
-[*]Old-school movement, weapons, items, doors, lifts and teleporters, with the classic status bar
-[*]Every frag is a real CS2 kill, so the killfeed, scoreboard and rank plugins count it
-[*]Random weapon starts: now and then an arena starts everyone with a pump-action shotgun, double-barrelled shotgun, minigun, missile launcher, polaric energy weapon, ripsaw, or the SKAG 1337
-[*]Players joining mid-round take a bot's place instead of waiting
-[*]Soundtrack: every round opens with the Hellmatch theme, then original fast-paced tracks and the levels' retro FM music (turn it down with your music volume)
+[*]Map: mg_hellmatch. Load it by Workshop ID: host_workshop_map 3820099820. Game type Custom.
+[*]Nothing to install. The map sets its own rules while arenas run: mp_ignore_round_win_conditions, respawn on/off per mode, mp_teammates_are_enemies in free-for-all rounds, buying and money off, radar off. Set APPLY_CVARS to false in maps/scripts/freedm.js to keep your own config instead.
+[*]Plugins that get in the way: AFK managers, no-respawn plugins, spawn protection, teamkill punishment and anything that blocks scripted damage (kills are applied through the map script so the killfeed and scoreboard work).
+[*]CS2 bots play using the game's own bot AI; bot_quota fills empty slots.
+[*]Server load: about 1 to 3 ms of script time per tick with 32 to 64 players; the console prints "script time" once a minute so you can check.
+[*]Early build. Please report problems in the discussions, with the console lines if you have them.
+[/list]
+
+[h2]What's in it[/h2]
+[list]
+[*]32 deathmatch levels from the Freedoom project's FreeDM, rebuilt as CS2 geometry
+[*]One mode per round, the same in every arena: Free for All, Team Deathmatch (T = red, CT = blue), Boss Battle, Team Elimination, Last Man Standing
+[*]Boss Battle: everyone in the arena against four waves of creatures and then a boss, three lives each, on the larger levels
+[*]Now and then a deathmatch arena has monsters loose in it, or starts everyone with a particular weapon
+[*]Every frag is a real CS2 kill (killfeed, scoreboard, rank plugins); late joiners take a bot's place instead of waiting
+[*]Music: a theme at the start of each round, then original tracks and the levels' own FM soundtrack (your music volume controls it)
 [/list]
 
 [h2]Controls[/h2]
-[list]
-[*]W A S D: move (always running), Shift: walk, Mouse: aim, Mouse 1: fire
-[*]E or Space: use (doors, lifts, switches)
-[*]R or Mouse 2: next weapon, F: previous weapon
-[*]While watching: Mouse 1 / Mouse 2 change player, E or Space change arena
-[/list]
-Chat commands (! or /): [b]!help[/b] controls, [b]!hud[/b] status bar size, [b]!hud scores[/b] hide the HUD while the scoreboard is open, [b]!spec[/b] watch other arenas, [b]!afk[/b] sit out, [b]!back[/b] rejoin.
+W A S D move (always running), Shift walk, mouse aim, Mouse 1 fire, E or Space use (doors, lifts, switches), R or Mouse 2 next weapon, F previous weapon. While watching: Mouse 1 / Mouse 2 change player, E or Space change arena.
+Chat commands (! or /): [b]!help[/b] controls, [b]!hud[/b] status bar size, [b]!hud scores[/b] hide the game HUD while the scoreboard is open, [b]!spec[/b] watch other arenas, [b]!afk[/b] sit out, [b]!back[/b] rejoin.
 
-[h2]For server owners[/h2]
-[list]
-[*]Map name: mg_hellmatch (load it by Workshop ID: host_workshop_map 3820099820)
-[*]The map sets its own round rules while arenas run (mp_ignore_round_win_conditions, respawn on/off per mode, mp_teammates_are_enemies in free-for-all rounds), turns buying and money off, and disables the radar. All of this can be switched off with APPLY_CVARS in the script.
-[*]Plugins that can get in the way: AFK managers, no-respawn plugins, spawn protection and teamkill punishment.
-[*]CS2 bots play using the game's own bot AI; bot_quota fills empty slots.
-[/list]
+[h2]How it was made[/h2]
+The code (the map script, the level converter, the build tools) and most of the engineering were done with an AI coding assistant (Claude, by Anthropic), directed, tested and tuned by skink52. The four "GEN" music tracks were generated for this map (original, CC0). Everything else you see and hear is the Freedoom project's work, used under its BSD licence (below). Source code: https://github.com/skink52/hellmatch-cs2
+
+Hellmatch is an unofficial fan project. It is not affiliated with or endorsed by the Freedoom project, id Software, Bethesda or Valve; Freedoom is named only to credit its content. (Earlier published as FreeDM Arena.)
 
 [h2]Credits[/h2]
-Levels, textures, sprites, sounds and music come from the Freedoom project (freedoom.github.io), used under its BSD licence below.
-Music: the Hellmatch theme (trailer track) by skink52; the GEN tracks were generated for Hellmatch (original, CC0); level music DM05 "Music for Freedoom 9" by Jeremy "Vandalorian" Emerson; DM10 "Paranoia" and DM14 "The Heroic Battle" by Tyler "Picklehammer" P.; DM17 "Panic" by Anthony "Ajanddino" Pierce; DM21 "Friendly Fire" by Korp; DM26 "World of Pain" by J.Astartes; DM02 "Descent from Grace" by Lola "BlueWorrior" Harvey; DM23 "Shells" by Ospaggi; DM29 "SevenFour" by Ralph "Ralphis" Vickers. Rendered with libADLMIDI (Nuked OPL3) and the DMXOPL3 FM instrument bank by Shannon "Sneakernets" Freeman (MIT licence).
-The code was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52. Source: https://github.com/skink52/hellmatch-cs2
-
-Hellmatch is an unofficial fan project. It is not affiliated with or endorsed by the Freedoom project, id Software, Bethesda or Valve; Freedoom is named only to credit its content. (Formerly called FreeDM Arena.)
+Levels, textures, sprites, sounds and level music: the Freedoom project (freedoom.github.io). Level music rendered from Freedoom's MIDI files with libADLMIDI (Nuked OPL3) and the DMXOPL3 instrument bank by Shannon "Sneakernets" Freeman (MIT licence): DM05 "Music for Freedoom 9" by Jeremy "Vandalorian" Emerson; DM10 "Paranoia" and DM14 "The Heroic Battle" by Tyler "Picklehammer" P.; DM17 "Panic" by Anthony "Ajanddino" Pierce; DM21 "Friendly Fire" by Korp; DM26 "World of Pain" by J.Astartes; DM02 "Descent from Grace" by Lola "BlueWorrior" Harvey; DM23 "Shells" by Ospaggi; DM29 "SevenFour" by Ralph "Ralphis" Vickers. Theme: the Hellmatch trailer track by skink52.
 
 [h2]Freedoom licence[/h2]
 Copyright © 2001-2024
