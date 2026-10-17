@@ -97,6 +97,46 @@ for k, t in enumerate(json.load(open(mj)) if os.path.exists(mj) else []):
     ent('point_soundevent', (-700 + k * 64, 400, LZ + 64), group=GROUP, targetname='fdm_mus_' + t['id'],
         soundName='fdm_music.' + t['id'], startOnSpawn='0', toLocalPlayer='0', stopOnNew='0', saveAndRestore='0')
 
+# ---------------------------------------------------------------- sprite models and sounds added since the map was first made
+# The first build put a prop_dynamic per sprite model in the cache room (so CS2 compiles and precaches them) and a
+# point_soundevent per sound in the lobby; those live in the user's map now. Anything new (monster models and sounds)
+# is added here, in the env group, so a rebuild replaces only its own additions.
+def existing_names(classname, prefix):
+    out = {}
+    for c in world.attr('children')[2]:
+        if c.type != 'CMapEntity': continue
+        ep = c.get('entity_properties')
+        if ep.get('classname') != classname: continue
+        tn = ep.get('targetname') or ''
+        if tn.startswith(prefix) and c.get('customVisGroup', '') != GROUP: out[tn] = c
+    return out
+
+sprites = json.load(open(os.path.join(OUT, '_gen/sprite_models.json')))
+have_cache = existing_names('prop_dynamic', 'fdm_cache_')
+taken = []
+for c in have_cache.values():
+    v = c.attr('origin')[2]
+    taken.append((float(v[0]), float(v[1])))
+missing_models = sorted(k for k in sprites if 'fdm_cache_' + k.lower() not in have_cache)
+# a 32 x 40 grid over the cache room (0, 4200; 2048 x 1024), skipping spots the old props use (the props are not
+# solid and never seen, they only make CS2 compile and precache the models)
+grid = [(-1000 + i * 32, 3712 + j * 40) for j in range(25) for i in range(63)]
+free = [g for g in grid if all(abs(g[0] - t[0]) > 24 or abs(g[1] - t[1]) > 24 for t in taken)]
+assert len(free) >= len(missing_models), ('cache room full', len(free), len(missing_models))
+for k, key in enumerate(missing_models):
+    x, y = free[k]
+    ent('prop_dynamic', (x, y, LZ + 8), group=GROUP, targetname='fdm_cache_%s' % key.lower(), model='models/fdm/spr/%s.vmdl' % key.lower(),
+        solid='0', disableshadows='1')
+
+SOUNDS = [l.split('"')[1][4:] for l in open(os.path.join(OUT, 'soundevents/soundevents_addon.vsndevts'))
+          if l.strip().startswith('"fdm.') and 'base' not in l]
+have_snd = existing_names('point_soundevent', 'fdm_snd_')
+missing_snd = [sn for sn in SOUNDS if 'fdm_snd_' + sn not in have_snd]
+for k, sn in enumerate(missing_snd):
+    ent('point_soundevent', (-700 + (k % 20) * 64, 100 + (k // 20) * 64, LZ + 64), group=GROUP, targetname='fdm_snd_' + sn, soundName='fdm.' + sn,
+        startOnSpawn='0', toLocalPlayer='0', stopOnNew='0', saveAndRestore='0')
+print('env: %d new sprite models, %d new sounds added to the map' % (len(missing_models), len(missing_snd)))
+
 # ---------------------------------------------------------------- level geometry props: always match the current build
 def is_level_prop(c):
     if c.type != 'CMapEntity': return False

@@ -28,6 +28,8 @@ function buildCfg() {
   c.elimTimeLimitTics = CONFIG.ELIM_SECONDS * TICRATE;
   c.finishGraceTics = CONFIG.FINISH_GRACE * TICRATE;
   c.loadoutChance = CONFIG.LOADOUT_CHANCE; c.loadouts = Object.assign({}, CONFIG.START_WEAPONS);
+  c.monsterChance = CONFIG.MONSTER_CHANCE; c.monsters = Object.assign({}, CONFIG.MONSTERS);
+  c.bossTimeLimitTics = CONFIG.BOSS_SECONDS * TICRATE;
   c.staggerArenas = true;
   c.replaceBots = CONFIG.REPLACE_BOTS;
   c.arenaMin = CONFIG.ARENA_MIN;
@@ -107,9 +109,9 @@ function startDoomRound() {
   guard("roundtime", () => Instance.SetRoundRemainingTime(CONFIG.ROUND_SECONDS + CONFIG.ROUND_SLACK));
   pendingKills.length = 0; elimKills.length = 0;
   // the arenas themselves are built one per Doom tic (see arenaBuilt) so the server doesn't hitch
-  const desc = rm.plan.map((it) => `${it.L.title} (${it.grp.length}${it.loadout ? ", " + LOADOUTS[it.loadout].name : ""})`).join(", ");
+  const desc = rm.plan.map((it) => `${it.L.title} (${it.grp.length}${it.loadout ? ", " + LOADOUTS[it.loadout].name : ""}${it.monsters ? ", MONSTERS" : ""})`).join(", ");
   sayAll(`HELLMATCH: ${MODES[rm.modeKey].name} - ${desc}`);
-  log(`round ${rm.roundNumber}: ${rm.modeKey}, arenas ${rm.plan.map((it) => it.mk + ":" + it.grp.length + (it.loadout ? "+" + it.loadout : "")).join(" ")}`);
+  log(`round ${rm.roundNumber}: ${rm.modeKey}, arenas ${rm.plan.map((it) => it.mk + ":" + it.grp.length + (it.loadout ? "+" + it.loadout : "") + (it.monsters ? "+monsters" : "")).join(" ")}`);
 }
 
 function onArenaBuilt(a) {
@@ -137,7 +139,8 @@ function endDoomRound() {
   for (const a of rm.arenas) {
     const r = a.result;
     if (!r) continue;
-    if (r.team !== undefined) { if (r.team === 0) wins[2]++; else if (r.team === 1) wins[3]++; }
+    if (r.coop) { if (r.won && r.sides) { if (r.sides[2] > r.sides[3]) wins[2]++; else if (r.sides[3] > r.sides[2]) wins[3]++; } }   // Boss Battle: the side with more monster kills
+    else if (r.team !== undefined) { if (r.team === 0) wins[2]++; else if (r.team === 1) wins[3]++; }
     else if (r.player && r.player.person && wins[r.player.person.csTeam] !== undefined) wins[r.player.person.csTeam]++;
   }
   const reason = wins[2] > wins[3] ? CSRoundEndReason.TERRORISTS_WIN : wins[3] > wins[2] ? CSRoundEndReason.CTS_WIN : CSRoundEndReason.DRAW;
@@ -197,11 +200,13 @@ function onDoomKill(arena, e) {
     }
     return;
   }
+  // killed by a monster: a world kill in CS2 (no suicide penalty), as Doom counts it
+  const killer = e.kind === "monster" ? null : k ? k.slot : v.slot;
   if (arena.mode.respawn) {
     v.respawnGate = false;
-    pendingKills.push({ at: Instance.GetGameTime() + CONFIG.KILL_DELAY, victim: v.slot, killer: k ? k.slot : v.slot, player: v, since: Instance.GetGameTime() });
+    pendingKills.push({ at: Instance.GetGameTime() + CONFIG.KILL_DELAY, victim: v.slot, killer, player: v, since: Instance.GetGameTime() });
   } else {
-    elimKills.push({ victim: v.slot, killer: k ? k.slot : v.slot });
+    elimKills.push({ victim: v.slot, killer });
   }
 }
 
@@ -241,6 +246,17 @@ function handleArenaEvents(a) {
       case "kill": onDoomKill(a, e); break;
       case "teleport": case "spawn": faceView(e.player.slot, e.angle); break;
       case "fight": centerMsgs.set(a, { text: "FIGHT!", until: Instance.GetGameTime() + 1.2 }); break;
+      // Boss Battle
+      case "wave": centerMsgs.set(a, { text: `WAVE ${e.wave} OF ${e.of}`, until: Instance.GetGameTime() + 3 }); break;
+      case "waveCleared": centerMsgs.set(a, { text: "WAVE CLEARED", until: Instance.GetGameTime() + 3 }); break;
+      case "bossWave":
+        centerMsgs.set(a, { text: "BOSS INCOMING", until: Instance.GetGameTime() + 4 });
+        sayAll(`${a.mapTitle}: the boss is here - ${e.name.toLowerCase()}`);
+        break;
+      case "bossDown": centerMsgs.set(a, { text: "BOSS DOWN!", until: Instance.GetGameTime() + 3 }); break;
+      case "monsterKill":
+        if (e.boss && e.killer) { e.killer.message = `YOU KILLED THE ${String(e.name).toUpperCase()}`; e.killer.messageTime = a.leveltime; }
+        break;
     }
   }
   a.events.length = 0;
@@ -285,13 +301,22 @@ function infoFor(pe, now) {
   // clock: the elimination limit and/or the time left once another arena has finished
   let left = Infinity;
   if (!mode.respawn && rm.cfg.elimTimeLimitTics) left = Math.ceil((rm.cfg.elimTimeLimitTics - a.time) / TICRATE);
+  if (a.coop && rm.cfg.bossTimeLimitTics) left = Math.ceil((rm.cfg.bossTimeLimitTics - a.time) / TICRATE);
   if (rm.graceEnd && !a.finished) left = Math.min(left, Math.ceil((rm.graceEnd - rm.time) / TICRATE));
   const clock = left === Infinity ? "" : Math.floor(Math.max(0, left) / 60) + ":" + String(Math.max(0, left) % 60).padStart(2, "0");
-  if (a.target && clock) line1 = "FIRST TO " + a.target + " - " + clock + " LEFT";
+  if (a.coop && a.director) {
+    const d = a.director;
+    line1 = (d.wave >= d.cfg.waves ? "BOSS" : d.wave > 0 ? `WAVE ${d.wave} OF ${d.cfg.waves}` : "BOSS BATTLE") + (clock ? " - " + clock : "");
+  } else if (a.target && clock) line1 = "FIRST TO " + a.target + " - " + clock + " LEFT";
   else if (a.target) line1 += " - FIRST TO " + a.target;
   else if (clock) line1 += " " + clock;
   let line2 = "";
-  if (a.teamsActive) {
+  if (a.coop && a.director) {
+    const d = a.director;
+    const me = pe.player && pe.player.arena === a ? pe.player : null;
+    const lives = me && me.lives !== undefined ? `  LIVES ${Math.max(0, me.lives)}` : "";
+    line2 = (d.wave >= d.cfg.waves ? `${d.left()} TO KILL` : `${d.left()} MONSTERS`) + lives;
+  } else if (a.teamsActive) {
     if (a.modeKey === "elim") {
       const alive = [0, 0];
       for (const p of a.players.values()) if (!p.spectating && p.playerstate === "live") alive[p.team]++;
@@ -318,7 +343,7 @@ function infoFor(pe, now) {
     else if (pe.csTeam !== 2 && pe.csTeam !== 3) spec = "JOIN T OR CT TO PLAY";
     else spec = rm.canJoin(pe) ? "TYPE !BACK TO PLAY" : "YOU PLAY NEXT ROUND";
   } else if (pe.afk) spec = "AFK - TYPE !BACK TO PLAY";
-  else if (pe.player && pe.player.playerstate === "dead" && a.mode.respawn) spec = "RESPAWNING...";
+  else if (pe.player && pe.player.playerstate === "dead" && a.mode.respawn) spec = pe.player.lives !== undefined && pe.player.lives <= 0 ? "OUT OF LIVES" : "RESPAWNING...";
   else if (a.countdown > 0 && a.loadout) spec = LOADOUTS[a.loadout].name;
   // !help: controls on the message line and chat commands at the bottom, over whatever was there
   if (pe.helpUntil > now) {

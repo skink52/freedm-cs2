@@ -9,7 +9,7 @@ node -e "
 const C=require('./build/core_test.cjs');
 const hud=new Set(['PUNG','PISG','PISF','SHTG','SHTF','SHT2','CHGG','CHGF','MISG','MISF','SAWG','PLSG','PLSF','BFGG','BFGF']);
 const w=new Map(), h=new Set();
-for (const st of C.STATES) { if (st.sprite==='TROO') continue; const k=st.sprite+'_'+String.fromCharCode(97+st.frame); if (hud.has(st.sprite)) h.add(st.sprite+String.fromCharCode(65+st.frame)+'0'); else w.set(k,(w.get(k)||false)||st.bright); }
+for (const st of C.STATES) { if (st.name==='NULL') continue; const k=st.sprite+'_'+(st.frame < 26 ? String.fromCharCode(97+st.frame) : String(st.frame-26)); if (hud.has(st.sprite)) h.add(st.sprite+String.fromCharCode(65+st.frame)+'0'); else w.set(k,(w.get(k)||false)||st.bright); }
 require('fs').writeFileSync('build/world_frames.json', JSON.stringify([...w.entries()]));
 require('fs').writeFileSync('build/hud_frames.json', JSON.stringify([...h]));
 "
@@ -19,7 +19,8 @@ import re, json
 src = open('src/core/00_defs.js').read()
 msgs = re.findall(r"GOT[A-Z0-9]+: '([^']+)'", src)
 fixed = msgs + ['FIGHT!', 'RESPAWNING...', 'SPECTATING', '1', '2', '3', 'RED TEAM WINS', 'BLUE TEAM WINS', 'DRAW',
-  'Exits are disabled in this game.', 'MOVE OR YOU WILL BE MARKED AFK', 'FREE FOR ALL', 'TEAM DEATHMATCH', 'TEAM ELIMINATION', 'LAST MAN STANDING']
+  'Exits are disabled in this game.', 'MOVE OR YOU WILL BE MARKED AFK', 'FREE FOR ALL', 'TEAM DEATHMATCH', 'TEAM ELIMINATION', 'LAST MAN STANDING',
+  'BOSS BATTLE', 'VICTORY', 'OVERRUN', 'WAVE CLEARED', 'BOSS INCOMING', 'TIME UP']
 json.dump(sorted(set(s.upper() for s in fixed)), open('build/hud_strings.json', 'w'))
 PY
 python3 -I tools/hud.py out/addon build/hud_frames.json

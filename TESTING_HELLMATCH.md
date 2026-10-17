@@ -11,7 +11,7 @@ Each line says what to look for. If something fails, tell me what you saw and I'
 
 ## B. Local test (listen server)
 Run `map mg_hellmatch` with `bot_quota 5`, or invite a friend. Start the game normally, not in warmup.
-- [ ] Console line `[hellmatch] v0.1.0 ready: 32 levels, 190 sprite models, HUD on, prop template on`.
+- [ ] Console line `[hellmatch] v0.2.0 ready: 32 levels, 502 sprite models, HUD on, prop template on`.
 - [ ] After freeze time you're in an arena level and your view moves with WASD.
 - [ ] The textures look sharp and pixelated, not blurry or dark/black.
 - [ ] Movement feels old-school: fast running, sliding along walls, stairs.
@@ -39,11 +39,18 @@ Run `map mg_hellmatch` with `bot_quota 5`, or invite a friend. Start the game no
 13. **Walls up close** (MAP28 especially). Press against walls, ledges too high to step onto, pillars and closed doors while looking around. You should keep seeing wall, never the sky or the room behind it.
 14. **Spectating.** In a free for all or team deathmatch round, type `!spec`. Above the status bar you should see "SPECTATING <name>" and under it "TYPE !BACK TO PLAY" (the two lines must not overlap). Type `!help`: for 8 seconds the keys and chat commands replace those lines, and the controls show top left. Type `!back`: you're back in. In team elimination or last man standing the bottom line says "YOU PLAY NEXT ROUND" instead and `!back` keeps you watching.
 15. **Joining mid-round.** Join a running round from a second account or have a friend join. Within about a second of picking T or CT you should be in an arena (or watching, in a one-life round), never standing in the lobby with a knife, and every line on the HUD should be complete (no missing letters).
+16. **Theme music.** Every round should open with the Hellmatch theme (console: `[hellmatch] music: THEME Hellmatch Theme (trailer)`), then a track from the pool follows after a 2-second gap. The generated tracks (GEN01-GEN04) play in free-for-all, team deathmatch and Boss Battle rounds; tell me which ones you like and which to drop.
+17. **Boss Battle** (18 Oct build). Force it for a test: in `maps/scripts/freedm.js` set `MODE_WEIGHTS` to `{ ffa: 0, tdm: 0, boss: 100, elim: 0, lms: 0 }` (then `disconnect` and run the map again). Check: the round starts with a weapon; "WAVE 1 OF 5" shows in the centre and the top right says "WAVE 1 OF 5" / "N MONSTERS  LIVES 3"; monsters appear with a teleport flash and sound, walk, open doors, shoot and bite; they look like blocky 3D versions of the Freedoom creatures and face the way they walk; the frag box counts your kills; a death takes a life ("LIVES 2") and you respawn; waves follow each other ("WAVE CLEARED", 6 s pause); the 5th wave says "BOSS INCOMING" (chat names the boss); killing it ends the arena with "VICTORY"; the CS2 round score goes to the side with more monster kills. Also check: nobody can hurt a teammate (T or CT) in this mode; being killed by a monster shows in the killfeed as a death with no killer (no -1); the console has no `point_script ... thinking for` spikes when a wave arrives; a spectre (stealth worm) is a dark see-through shape; the arch-vile's (flame bringer's) fire column shows on its target.
+18. **Monsters in deathmatch.** Set `MONSTER_CHANCE: 1` the same way: every arena then has a few monsters loose in the level ("+ MONSTERS" in the round's chat line). Killing one gives no frag; dying to one costs none and shows a world death in the killfeed. Watch for monsters stuck in walls or floating; tell me the level and where.
+19. **Frame rate.** With 4 arenas of 16 (bot_quota 60) and Boss Battle, props per arena go up to ~40 monsters plus their shots; tell me if the `script time` console line goes over ~5 ms or the fps drops at wave arrivals.
 
 ## D. Server (CounterStrikeSharp)
 Use `claude/freedm_cs2_server_issues.md` in the project. The biggest risks are AFK managers, no-respawn plugins, spawn protection and teamkill punishment.
 
 ## Known gaps (planned next)
-- Animated floors and walls (slime, lava, water) are still images. Flickering lights are steady.
+- Monster kills are not CS2 kills (nothing to kill in CS2), so rank plugins don't count them; Boss Battle rounds still credit the CS2 round to a side.
+- The Boss Battle difficulty (wave sizes, boss health) is tuned on bots only; expect to adjust `MONSTERS` and the budget in `36_monsters.js` after real games.
+- Monster corpses stay only while they are among the last 24 (each is a prop in CS2).
+- Flickering lights are steady.
 - Bots navigate doors, lifts and teleporters but are still simple. Elimination rounds end after 4 minutes at most.
 - Weapon keys: only next/previous (R, mouse 2, F). CS2 doesn't give scripts the number keys.

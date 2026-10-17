@@ -389,8 +389,9 @@ function teleport(line, side, thing) {
 
 // ---------------------------------------------------------------- line activation
 function crossSpecialLine(line, side, thing) {
-  if (!thing.player) return;      // monsters and missiles never trigger walkover lines here
   const sp = line.special;
+  // monsters only use teleporters and the few walkover lines Doom lets them (missiles never trigger any)
+  if (!thing.player && (!(thing.info && thing.info.kind === 'monster') || ![39, 97, 4, 10, 88].includes(sp))) return;
   const once = () => { line.special = 0; };
   switch (sp) {
     // doors

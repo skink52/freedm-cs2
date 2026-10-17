@@ -1,5 +1,6 @@
 const C = require('../build/core_test.cjs');
 const cfg = JSON.parse(JSON.stringify(C.DEFAULT_CFG));
+if (process.env.MONSTERS) cfg.monsterChance = +process.env.MONSTERS;   // MONSTERS=1: every deathmatch arena gets monsters
 const N = +(process.argv[2] || 12), ROUNDS = +(process.argv[3] || 3), MODE = process.argv[4];
 const rm = new C.RoundManager(C.LEVELS, cfg);
 for (let i = 0; i < N; i++) rm.addPerson(i, 'bot' + i, i % 2 ? 3 : 2, true);
@@ -17,6 +18,8 @@ for (let r = 0; r < ROUNDS; r++) {
     for (const a of rm.arenas) {
       for (const e of a.events) {
         if (e.type === 'kill') { kills++; kinds[e.kind] = (kinds[e.kind] || 0) + 1; }
+        if (e.type === 'monsterKill') { kinds.monsterKills = (kinds.monsterKills || 0) + 1; if (e.boss) kinds.bossKills = (kinds.bossKills || 0) + 1; }
+        if (e.type === 'wave' || e.type === 'bossWave' || e.type === 'bossDown') kinds[e.type + (e.wave || '')] = (kinds[e.type + (e.wave || '')] || 0) + 1;
         if (e.type === 'sound') { sounds++; sndCount[e.sfx] = (sndCount[e.sfx] || 0) + 1; }
         if (e.type === 'msg') msgs++;
       }

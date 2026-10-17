@@ -17,6 +17,11 @@ function spawnMobj(x, y, z, type) {
     // render interpolation
     px: x, py: y, pz: z, pangle: 0, rev: 0, teleported: true,
   };
+  if (info.kind === 'monster') {
+    mo.movedir = DI_NODIR; mo.movecount = 0; mo.threshold = 0; mo.lastlook = P_Random() & 3;
+    mo.reactiontime = info.reactiontime;
+    G.monsterCount = (G.monsterCount || 0) + 1;
+  }
   setThingPosition(mo);
   mo.floorz = mo.sector.floorheight; mo.ceilingz = mo.sector.ceilingheight;
   if (z === ONFLOORZ) mo.z = mo.floorz;
@@ -30,6 +35,7 @@ function spawnMobj(x, y, z, type) {
 
 function removeMobj(mo) {
   if (mo.removed) return;
+  if (mo.info.kind === 'monster') G.monsterCount = Math.max(0, (G.monsterCount || 0) - 1);
   if ((mo.flags & MF_SPECIAL) && !(mo.flags & MF_DROPPED) && mo.spawnpoint &&
       mo.type !== MT.INVULN && mo.type !== MT.INVIS) {
     G.itemRespawnQueue.push({ point: mo.spawnpoint, time: G.leveltime });
@@ -56,7 +62,15 @@ function setMobjState(mo, state) {
 
 // ---------------------------------------------------------------- movement
 function xyMovement(mo) {
-  if (!mo.momx && !mo.momy) return;
+  if (!mo.momx && !mo.momy) {
+    if (mo.flags & MF_SKULLFLY) {
+      // the skull slammed into something
+      mo.flags &= ~MF_SKULLFLY;
+      mo.momx = mo.momy = mo.momz = 0;
+      setMobjState(mo, mo.info.spawnstate);
+    }
+    return;
+  }
   const player = mo.player;
   if (mo.momx > MAXMOVE) mo.momx = MAXMOVE; else if (mo.momx < -MAXMOVE) mo.momx = -MAXMOVE;
   if (mo.momy > MAXMOVE) mo.momy = MAXMOVE; else if (mo.momy < -MAXMOVE) mo.momy = -MAXMOVE;
@@ -82,7 +96,7 @@ function xyMovement(mo) {
     }
     if (mo.removed) return;
   } while (xmove || ymove);
-  if (mo.flags & (MF_MISSILE)) return;
+  if (mo.flags & (MF_MISSILE | MF_SKULLFLY)) return;   // no friction for missiles or charging skulls
   if (mo.z > mo.floorz) return;
   if (mo.flags & MF_CORPSE) {
     if ((mo.momx > 0.25 || mo.momx < -0.25 || mo.momy > 0.25 || mo.momy < -0.25) && mo.floorz !== mo.sector.floorheight) return;
@@ -103,7 +117,15 @@ function zMovement(mo) {
     mo.player.deltaviewheight = (VIEWHEIGHT - mo.player.viewheight) / 8;
   }
   mo.z += mo.momz;
+  // floaters drift towards their target's height
+  if ((mo.flags & MF_FLOAT) && mo.target && !(mo.flags & (MF_SKULLFLY | MF_INFLOAT))) {
+    const dist = approxDistance(mo.x - mo.target.x, mo.y - mo.target.y);
+    const delta = (mo.target.z + mo.height / 2) - mo.z;
+    if (delta < 0 && dist < -(delta * 3)) mo.z -= FLOATSPEED;
+    else if (delta > 0 && dist < delta * 3) mo.z += FLOATSPEED;
+  }
   if (mo.z <= mo.floorz) {
+    if (mo.flags & MF_SKULLFLY) mo.momz = -mo.momz;   // the skull slammed into the floor
     if (mo.momz < 0) {
       if (mo.player && mo.momz < -GRAVITY * 8) {
         mo.player.deltaviewheight = mo.momz / 8;
@@ -120,6 +142,7 @@ function zMovement(mo) {
   if (mo.z + mo.height > mo.ceilingz) {
     if (mo.momz > 0) mo.momz = 0;
     mo.z = mo.ceilingz - mo.height;
+    if (mo.flags & MF_SKULLFLY) mo.momz = -mo.momz;   // the skull slammed into the ceiling
     if ((mo.flags & MF_MISSILE) && !(mo.flags & MF_NOCLIP)) {
       if (mo.sector && mo.sector.sky && mo.ceilingz >= mo.sector.ceilingheight) { removeMobj(mo); return; }
       explodeMissile(mo); return;
@@ -129,7 +152,7 @@ function zMovement(mo) {
 
 function mobjThinker(mo) {
   mo.px = mo.x; mo.py = mo.y; mo.pz = mo.z; mo.pangle = mo.angle;
-  if (mo.momx || mo.momy) { xyMovement(mo); if (mo.removed) return; }
+  if (mo.momx || mo.momy || (mo.flags & MF_SKULLFLY)) { xyMovement(mo); if (mo.removed) return; }
   if (mo.z !== mo.floorz || mo.momz) { zMovement(mo); if (mo.removed) return; }
   if (mo.tics !== -1) {
     mo.tics--;
@@ -215,6 +238,7 @@ function damageMobj(target, inflictor, source, damage) {
   if (player && player.spectating) return;
   if (player && G.isProtected(player) && damage < 10000) return;
   if (sameTeamNoFF(source, target)) return;
+  if (target.flags & MF_SKULLFLY) target.momx = target.momy = target.momz = 0;
   if (inflictor && !(target.flags & MF_NOCLIP) &&
       (!source || !source.player || source.player.readyweapon !== WP_CHAINSAW)) {
     let ang = pointToAngle(inflictor.x, inflictor.y, target.x, target.y);
@@ -240,19 +264,28 @@ function damageMobj(target, inflictor, source, damage) {
     if (player.damagecount > 100) player.damagecount = 100;
     if (source && source.player && source !== target) source.player.stats.damage += damage;
   }
-  if (source && source !== target && !target.player) target.target = source;
   target.health -= damage;
   if (target.health <= 0) { killMobj(source, target, inflictor); return; }
-  if ((P_Random() < target.info.painchance) && target.info.painstate !== S_NULL) {
+  if ((P_Random() < target.info.painchance) && target.info.painstate !== S_NULL && !(target.flags & MF_SKULLFLY)) {
+    target.flags |= MF_JUSTHIT;   // fight back
     setMobjState(target, target.info.painstate);
   }
   target.reactiontime = 0;
+  // monsters remember who hurt them (and other monsters' stray shots start fights between them)
+  if (!target.player && (!target.threshold || target.type === MT.ARCHVILE) && source && source !== target && source.type !== MT.ARCHVILE) {
+    target.target = source;
+    target.threshold = BASETHRESHOLD;
+    if (target.state === target.info.spawnstate && target.info.seestate !== S_NULL) setMobjState(target, target.info.seestate);
+  }
 }
 
 function killMobj(source, target, inflictor) {
-  target.flags &= ~(MF_SHOOTABLE | MF_FLOAT);
+  target.flags &= ~(MF_SHOOTABLE | MF_FLOAT | MF_SKULLFLY);
+  if (target.type !== MT.LOSTSOUL) target.flags &= ~MF_NOGRAVITY;
   target.flags |= MF_CORPSE | MF_DROPOFF;
   target.height /= 4;
+  const monster = target.info.kind === 'monster';
+  if (monster) G.onMonsterKilled(target, source, inflictor);
   if (target.player) {
     target.flags &= ~MF_SOLID;
     const p = target.player;
@@ -266,6 +299,17 @@ function killMobj(source, target, inflictor) {
   if (target.removed) return;
   target.tics -= P_Random() & 3;
   if (target.tics < 1) target.tics = 1;
+  if (!monster) return;
+  // zombies drop their weapon
+  const drop = target.type === MT.ZOMBIE ? MT.CLIP : target.type === MT.SHOTGUY ? MT.SHOTGUN : target.type === MT.CHAINGUY ? MT.CHAINGUN : null;
+  if (drop !== null) {
+    const mo = spawnMobj(target.x, target.y, ONFLOORZ, drop);
+    mo.flags |= MF_DROPPED;
+  }
+  // only the last few monster corpses stay (every corpse is a prop in CS2)
+  const q = G.corpseQueue || (G.corpseQueue = []);
+  q.push(target);
+  while (q.length > (G.cfg.maxMonsterCorpses || 24)) { const old = q.shift(); if (!old.removed && (old.flags & MF_CORPSE)) removeMobj(old); }
 }
 
 // ---------------------------------------------------------------- pickups

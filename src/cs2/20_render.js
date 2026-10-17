@@ -52,11 +52,12 @@ function releaseProp(p) {
 }
 
 function spriteModel(sprite, frame) {
-  const key = sprite + "_" + String.fromCharCode(97 + frame);
+  const key = sprite + "_" + (frame < 26 ? String.fromCharCode(97 + frame) : String(frame - 26));   // frames past Z are keyed 0 1 2
   return SPRITE_MODELS[key] ? "models/fdm/spr/" + key.toLowerCase() + ".vmdl" : null;
 }
 
-const ROTATING = new Set(["PLAY", "MISL"]);
+// sprites whose models were carved from their 8 rotations face the way the thing looks
+const ROTATING = new Set(Object.entries(SPRITE_MODELS).filter(([, shape]) => shape === "rot8").map(([key]) => key.split("_")[0]));
 
 class ArenaView {
   constructor(arena) {

@@ -233,6 +233,7 @@ function checkAmmo(p) {
 function fireWeapon(p) {
   if (!checkAmmo(p)) return;
   setMobjState(p.mo, SN('PLAY_ATK1'));
+  noiseAlert(p.mo, p.mo);
   setPsprite(p, 0, WEAPONINFO[p.readyweapon].atk);
 }
 

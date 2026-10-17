@@ -6,12 +6,14 @@ To play: subscribe, then start it from Play > Workshop Maps (add bots with bot_q
 [list]
 [*]32 classic deathmatch levels (FreeDM, from the Freedoom project), rebuilt for CS2
 [*]Up to 64 players across 1 to 4 arenas: one arena under 16 players, two from 16, four from 32
-[*]A new mode every round, the same in every arena: Free for All, Team Deathmatch (T = red, CT = blue), Team Elimination, Last Man Standing
+[*]A new mode every round, the same in every arena: Free for All, Team Deathmatch (T = red, CT = blue), Boss Battle, Team Elimination, Last Man Standing
+[*]Boss Battle: co-op against waves of monsters (zombies, serpentipedes, flesh worms, trilobites, pain bringers, dark soldiers, combat slugs, technospiders, flame bringers...) and then a boss, with 3 lives each
+[*]Monsters in deathmatch: now and then an arena has creatures loose in the level, fighting everyone (and each other)
 [*]Old-school movement, weapons, items, doors, lifts and teleporters, with the classic status bar
 [*]Every frag is a real CS2 kill, so the killfeed, scoreboard and rank plugins count it
 [*]Random weapon starts: now and then an arena starts everyone with a pump-action shotgun, double-barrelled shotgun, minigun, missile launcher, polaric energy weapon, ripsaw, or the SKAG 1337
 [*]Players joining mid-round take a bot's place instead of waiting
-[*]Retro FM soundtrack: longer tracks in Free for All and Team Deathmatch, short ones in one-life rounds (turn it down with your music volume)
+[*]Soundtrack: every round opens with the Hellmatch theme, then original fast-paced tracks and the levels' retro FM music (turn it down with your music volume)
 [/list]
 
 [h2]Controls[/h2]
@@ -33,7 +35,7 @@ Chat commands (! or /): [b]!help[/b] controls, [b]!hud[/b] status bar size, [b]!
 
 [h2]Credits[/h2]
 Levels, textures, sprites, sounds and music come from the Freedoom project (freedoom.github.io), used under its BSD licence below.
-Music: DM05 "Music for Freedoom 9" by Jeremy "Vandalorian" Emerson; DM10 "Paranoia" and DM14 "The Heroic Battle" by Tyler "Picklehammer" P.; DM17 "Panic" by Anthony "Ajanddino" Pierce; DM21 "Friendly Fire" by Korp; DM26 "World of Pain" by J.Astartes; DM02 "Descent from Grace" by Lola "BlueWorrior" Harvey; DM23 "Shells" by Ospaggi; DM29 "SevenFour" by Ralph "Ralphis" Vickers. Rendered with libADLMIDI (Nuked OPL3) and the DMXOPL3 FM instrument bank by Shannon "Sneakernets" Freeman (MIT licence).
+Music: the Hellmatch theme (trailer track) by skink52; the GEN tracks were generated for Hellmatch (original, CC0); level music DM05 "Music for Freedoom 9" by Jeremy "Vandalorian" Emerson; DM10 "Paranoia" and DM14 "The Heroic Battle" by Tyler "Picklehammer" P.; DM17 "Panic" by Anthony "Ajanddino" Pierce; DM21 "Friendly Fire" by Korp; DM26 "World of Pain" by J.Astartes; DM02 "Descent from Grace" by Lola "BlueWorrior" Harvey; DM23 "Shells" by Ospaggi; DM29 "SevenFour" by Ralph "Ralphis" Vickers. Rendered with libADLMIDI (Nuked OPL3) and the DMXOPL3 FM instrument bank by Shannon "Sneakernets" Freeman (MIT licence).
 The code was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52. Source: https://github.com/skink52/hellmatch-cs2
 
 Hellmatch is an unofficial fan project. It is not affiliated with or endorsed by the Freedoom project, id Software, Bethesda or Valve; Freedoom is named only to credit its content. (Formerly called FreeDM Arena.)

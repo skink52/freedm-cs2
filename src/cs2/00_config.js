@@ -4,7 +4,7 @@
 
 const CONFIG = {
   // ---- game rules
-  MODE_WEIGHTS: { ffa: 35, tdm: 35, elim: 20, lms: 10 },
+  MODE_WEIGHTS: { ffa: 30, tdm: 30, boss: 15, elim: 15, lms: 10 },   // boss = Boss Battle (co-op: waves of monsters, then a boss)
   FFA_FRAGS: 20,                 // first to this many (scaled down for small arenas)
   TDM_FRAGS: 32,                 // team total (scaled down for small arenas)
   ARENA_MAX: 16, ARENA_MIN: 8, MAX_ARENAS: 4,   // one arena until there are 2 x ARENA_MIN players, then 2, then 4, spread evenly
@@ -15,6 +15,9 @@ const CONFIG = {
   FINISH_GRACE: 120,             // once the first arena finishes, the others have this many seconds left (0 = off)
   LOADOUT_CHANCE: 0.12,          // chance, per arena, of a "weapon start": everyone there (re)spawns with one of START_WEAPONS
   START_WEAPONS: { shotgun: 3, ssg: 3, chaingun: 3, rocket: 2, plasma: 2, chainsaw: 2, bfg: 1 },   // weapon: how likely
+  MONSTER_CHANCE: 0.15,          // chance, per arena, that a deathmatch round has monsters loose in the level (no frags for them)
+  MONSTERS: { waves: 5, lives: 3, maxAlive: 36, roamMax: 8 },   // Boss Battle: waves before the boss (the 5th is the boss), lives each; alive cap per arena
+  BOSS_SECONDS: 480,             // Boss Battle arenas end after this (the monsters win)
   ITEMS_RESPAWN: true,           // Doom "deathmatch 2.0": items respawn, weapons are picked up
   FRIENDLY_FIRE: false,
   FREELOOK_AIM: true,            // aim up/down with the mouse when autoaim finds nothing
@@ -68,6 +71,7 @@ const CONFIG = {
   MAX_SOUNDS_PER_TICK: 24,
   MUSIC: true,                   // level music during rounds: long tracks in respawn rounds, short ones in one-life rounds
   MUSIC_GAP: 2,                  // seconds of quiet between tracks
+  MUSIC_OPENER: "every",         // the Hellmatch theme (trailer track): "every" round opens with it, "first" round after map load only, "off"
   SPAWN_BUDGET: 20,             // new props created per server tick at most (round start creates hundreds)
   HIDE_HUD_ON_SCOREBOARD: false,  // default for everyone; each player can switch it with !hud scores
   HUD_BUDGET: 600,               // HUD changes sent per server tick at most (the first draw for many players is spread out)
@@ -85,4 +89,4 @@ const CONFIG = {
 };
 
 const ZSCALE = 1.2;
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";

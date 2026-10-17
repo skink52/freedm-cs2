@@ -12,7 +12,12 @@ MUSIC_VOLUME = 0.7          # music loudness (each player's own music volume set
 
 SOUNDS = ('barexp bdcls bdopn bfg dbcls dbload dbopn dorcls doropn dshtgn firxpl getpow itemup itmbk noway oof pdiehi pistol '
           'plasma pldeth plpain pstart pstop punch rlaunc rxplod sawful sawhit sawidl sawup shotgn slop stnmov telept wpnup '
-          'swtchn swtchx').split()
+          'swtchn swtchx '
+          # monsters (sight, attack, pain, death, idle)
+          'posit1 posit2 posit3 popain podth1 podth2 podth3 posact bgsit1 bgsit2 bgdth1 bgdth2 bgact dmpain dmact '
+          'sgtsit sgtatk sgtdth cacsit cacdth kntsit kntdth brssit brsdth skesit skedth skeact skeatk skeswg skepch '
+          'pesit pepain pedth mansit mnpain mandth manatk bspsit bspdth bspact bspwlk vilsit vipain vildth vilact vilatk '
+          'flame flamst cybsit cybdth hoof metal spisit spidth sklatk claw firsht').split()
 
 def convert_wav(src, dst):
     with wave.open(src) as w:

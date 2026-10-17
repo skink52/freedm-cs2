@@ -1,6 +1,6 @@
 # Hellmatch CS2: setup
 
-Hellmatch is a retro 90s-style deathmatch that runs inside one CS2 map, with no server plugins. The whole game runs in the map's cs_script (`maps/scripts/freedm.js`): movement, weapons, items, doors, lifts, teleporters and frags. The levels, textures, sprites, sounds, music and status bar graphics come from the Freedoom project's FreeDM (see Credits).
+Hellmatch is a retro 90s-style deathmatch that runs inside one CS2 map, with no server plugins. The whole game runs in the map's cs_script (`maps/scripts/freedm.js`): movement, weapons, items, doors, lifts, teleporters, monsters and frags. The levels, textures, sprites, sounds, music and status bar graphics come from the Freedoom project's FreeDM (see Credits).
 
 (Hellmatch was called "FreeDM Arena" before 17 Oct 2026. Internal file and entity names still say `freedm` / `fdm`; players never see them.)
 
@@ -13,7 +13,7 @@ All other files (models, materials, HUD, sounds, script) go into the same addon 
 ## 2. Build the map
 
 1. Open `maps/mg_hellmatch.vmap` in Hammer.
-2. Build it. The first build compiles about 1,900 materials and 480 models, so it takes a while.
+2. Build it. The first build compiles about 2,200 materials and 800 models, so it takes a while.
 
 The map's main entities:
 
@@ -24,8 +24,8 @@ The map's main entities:
 | `point_template` | `fdm_tpl_prop` | Template01 = `fdm_src_prop` |
 | `prop_dynamic` | `fdm_src_prop` | Model = `models/fdm/null.vmdl`, not solid |
 | `info_target` | `fdm_booth` | Centre of the small sealed room (players' bodies wait here) |
-| `point_soundevent` ×37 | `fdm_snd_<name>` | Sound Event Name = `fdm.<name>` |
-| `point_soundevent` ×9 | `fdm_mus_<track>` | Sound Event Name = `fdm_music.<track>` (music) |
+| `point_soundevent` ×95 | `fdm_snd_<name>` | Sound Event Name = `fdm.<name>` |
+| `point_soundevent` ×14 | `fdm_mus_<track>` | Sound Event Name = `fdm_music.<track>` (music) |
 | `env_sky` | `fdm_sky` | `materials/fdm/sky/sky.vmat` |
 | `env_gradient_fog` | `fdm_fog` | Black, 256 to 3000 units (the classic light fade) |
 
@@ -42,10 +42,14 @@ Everything else is plain props:
 
   | Mode | Rule | Chance |
   |---|---|---|
-  | Free for all | First to 20 frags (fewer in small arenas) | 35% |
-  | Team deathmatch | First team to 32 frags. T = red, CT = blue | 35% |
-  | Team elimination | One life each, last team standing | 20% |
+  | Free for all | First to 20 frags (fewer in small arenas) | 30% |
+  | Team deathmatch | First team to 32 frags. T = red, CT = blue | 30% |
+  | Boss Battle | Co-op: everyone in the arena against 4 waves of monsters, then a boss. 3 lives each. See below | 15% |
+  | Team elimination | One life each, last team standing | 15% |
   | Last man standing | One life each, last player standing | 10% |
+
+- **Boss Battle** (co-op). The arena's players (T and CT together, no damage between them) start with a real weapon and fight waves of Freedoom's creatures: zombies, serpentipedes and flesh worms first, then trilobites, pain bringers, dark soldiers, combat slugs, technospiders and flame bringers. Waves are sized to the number of players and the level. The 5th wave is the boss: an assault tripod (the cyberdemon), a large technospider in bigger arenas, or a pack of pain lords where the big ones don't fit, with an escort. Everyone has 3 lives; out of lives means spectating. The arena wins when the boss dies, loses when everyone is out of lives or 8 minutes pass. The status bar's frag box counts your monster kills; the top-right lines show the wave, what is left to kill and your lives. For the CS2 round, a won Boss Battle arena counts for the side (T or CT) with more monster kills in it. Monster kills aren't CS2 kills (there is no pawn to kill), so rank plugins see no kills in these rounds; dying to a monster is a CS2 death with no attacker.
+- **Monsters in deathmatch**: each free-for-all, team deathmatch, elimination or last-man-standing arena has a 15% chance of having monsters loose in the level (a few, sized to the level; killed ones are replaced after a while). Doom's rules apply: killing a monster is not a frag, dying to one costs no frag (and no CS2 kill against anyone). Monsters fight back at whoever hurts them, players and other monsters alike, and they open doors and use teleporters.
 
 - Every arena gets its own random level.
 - Each arena has a small chance (12%) of a weapon start: everyone there spawns and respawns with a pump-action shotgun, double-barrelled shotgun, minigun, missile launcher, polaric energy weapon, ripsaw or (rarely) the SKAG 1337, plus extra ammo, as well as the pistol.
@@ -56,7 +60,7 @@ Everything else is plain props:
   - In elimination modes the kills are applied when the round ends, so eliminated players can keep watching.
 - When an arena finishes, its players watch the arenas still fighting (so do players knocked out of a one-life round, and anyone who types `!spec`). Mouse 1 / mouse 2 change player, E or Space changes arena. Above the status bar a spectator sees who they are watching and either "TYPE !BACK TO PLAY" or "YOU PLAY NEXT ROUND".
 - The CS2 round ends when every arena is done, or after 10 minutes.
-- Music: the levels' own soundtrack, played one track after another while a round runs. Free for all and team deathmatch rounds play longer tracks, one-life rounds play short ones. Everyone hears the same track; each player can turn it down with their own music volume (`snd_musicvolume` in the console).
+- Music: every round opens with the Hellmatch theme (the trailer track), then plays the round's pool one track after another: respawn rounds (free for all, team deathmatch, Boss Battle) play the longer tracks, one-life rounds play short ones. `MUSIC_OPENER` in the settings makes the theme play every round (default), only in the first round after map load, or never. Everyone hears the same track; each player can turn it down with their own music volume (`snd_musicvolume` in the console).
 - AFK: after 20 seconds idle you get a warning. At 30 seconds you are moved to spectating and skipped next round until you press a key or type `!back`. Both notices show on that player's own screen, not in chat.
 - CS2 bots on the server play using the game's own bot AI. `bot_quota 6` fills a test server.
 
@@ -78,7 +82,7 @@ Frags during CS2 warmup are not sent to the scoreboard.
 
 ## Settings
 
-Open `maps/scripts/freedm.js` and search for `const CONFIG`. The top of that block has the frag limits, mode chances, round length, kill-credit options, AFK times, bot skill, music on/off, and whether the map sets server cvars (`APPLY_CVARS`).
+Open `maps/scripts/freedm.js` and search for `const CONFIG`. The top of that block has the frag limits, mode chances (`MODE_WEIGHTS`, `boss` is Boss Battle), the monster settings (`MONSTER_CHANCE` for deathmatch rounds; `MONSTERS`: waves, lives and the alive cap of Boss Battle; `BOSS_SECONDS`), round length, kill-credit options, AFK times, bot skill, music (`MUSIC`, `MUSIC_OPENER`), and whether the map sets server cvars (`APPLY_CVARS`).
 
 When `APPLY_CVARS` is on, the map sets these:
 - `mp_ignore_round_win_conditions` while arenas are running.
@@ -93,4 +97,4 @@ Hellmatch is an unofficial fan project. It is not affiliated with or endorsed by
 
 The code (the cs_script and the build tools) was written by an AI coding agent (Claude, by Anthropic), directed and tested by skink52.
 
-All game content is from the Freedoom project (freedoom.github.io, BSD licence, see `FREEDOOM_LICENSE.txt` and `FREEDOOM_CREDITS.txt`): the FreeDM levels, textures, sprites, sounds, music and graphics. The music is rendered from Freedoom's MIDI files with an OPL3 FM synth and the DMXOPL3 instrument bank (MIT licence); track titles and composers are in `MUSIC_CREDITS.txt`. The game rules are a fresh implementation in cs_script.
+The levels, textures, sprites (players, items, monsters), sounds, level music and graphics are from the Freedoom project (freedoom.github.io, BSD licence, see `FREEDOOM_LICENSE.txt` and `FREEDOOM_CREDITS.txt`). The level music is rendered from Freedoom's MIDI files with an OPL3 FM synth and the DMXOPL3 instrument bank (MIT licence). The Hellmatch theme and the generated tracks are original music made for Hellmatch; track titles and sources are in `MUSIC_CREDITS.txt`. The game rules, including the monsters' behaviour, are a fresh implementation in cs_script.

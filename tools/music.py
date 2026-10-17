@@ -51,6 +51,30 @@ def render(tid):
 def seconds(path):
     return float(subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', path]))
 
+# extra tracks (music/<file> + music/tracks.json): the Hellmatch theme from the trailer and the generated ones.
+# Loudness-matched to the same target as the FreeDM tracks and re-encoded; cached by source size and mtime.
+EXTRA_DIR = os.path.join(ROOT, 'music')
+def extra_tracks():
+    tj = os.path.join(EXTRA_DIR, 'tracks.json')
+    out = []
+    for t in (json.load(open(tj)) if os.path.exists(tj) else []):
+        src = os.path.join(EXTRA_DIR, t['file'])
+        if not os.path.exists(src):
+            print('music: missing', src); continue
+        os.makedirs(CACHE, exist_ok=True)
+        st = os.stat(src)
+        mp3 = os.path.join(CACHE, '%s_%d_%d.mp3' % (t['id'], st.st_size, int(st.st_mtime)))
+        if not os.path.exists(mp3):
+            err = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', src, '-af', 'loudnorm=%s:print_format=json' % TARGET,
+                                  '-f', 'null', '-'], capture_output=True, text=True).stderr
+            m = json.loads(err[err.rindex('{'):err.rindex('}') + 1])
+            af = ('loudnorm=%s:measured_I=%s:measured_TP=%s:measured_LRA=%s:measured_thresh=%s:offset=%s:linear=true'
+                  % (TARGET, m['input_i'], m['input_tp'], m['input_lra'], m['input_thresh'], m['target_offset']))
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', src, '-af', af, '-ar', '44100', '-ac', '2',
+                            '-c:a', 'libmp3lame', '-b:a', '128k', mp3], check=True)
+        out.append((t, mp3))
+    return out
+
 names = titles()
 d = os.path.join(OUT, 'sounds/fdm/music'); os.makedirs(d, exist_ok=True)
 tracks = []
@@ -61,12 +85,17 @@ for pool, ids in POOLS.items():
         shutil.copy(src, os.path.join(d, tid + '.mp3'))
         title, by = names.get(tid, (tid.upper(), ''))
         tracks.append({'id': tid, 'pool': pool, 'seconds': round(seconds(src), 1), 'title': title, 'by': by})
+extras = extra_tracks()
+for t, src in extras:
+    shutil.copy(src, os.path.join(d, t['id'] + '.mp3'))
+    tracks.append({'id': t['id'], 'pool': t['pool'], 'seconds': round(seconds(src), 1), 'title': t['title'], 'by': t.get('by', '')})
 os.makedirs(os.path.join(OUT, '_gen'), exist_ok=True)
 json.dump(tracks, open(os.path.join(OUT, '_gen/music.json'), 'w'), indent=1)
-lines = ['Hellmatch music: level tracks from Freedoom\'s FreeDM, BSD licence like the rest of Freedoom.',
-         'Rendered from the original MIDI with libADLMIDI (Nuked OPL3 emulator) and the DMXOPL3 FM instrument bank',
-         'by Shannon "Sneakernets" Freeman (MIT licence).', '']
-lines += ['%s  %-34s %s' % (t['id'].upper(), t['title'], t['by']) for t in tracks]
+lines = ['Hellmatch music.', '',
+         'Theme (opens every round) and generated tracks: original music made for Hellmatch, see below.',
+         'Level tracks from Freedoom\'s FreeDM, BSD licence like the rest of Freedoom, rendered from the original MIDI',
+         'with libADLMIDI (Nuked OPL3 emulator) and the DMXOPL3 FM instrument bank by Shannon "Sneakernets" Freeman (MIT licence).', '']
+lines += ['%-7s %-34s %s' % (t['id'].upper(), t['title'], t['by']) for t in tracks]
 open(os.path.join(OUT, 'MUSIC_CREDITS.txt'), 'w', newline='\n').write('\n'.join(lines) + '\n')
 print('music: %d tracks (%s), %.1f MB' % (len(tracks), ', '.join('%s %d' % (p, sum(1 for t in tracks if t['pool'] == p)) for p in POOLS),
       sum(os.path.getsize(os.path.join(d, t['id'] + '.mp3')) for t in tracks) / 1e6))

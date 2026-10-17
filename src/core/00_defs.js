@@ -24,13 +24,20 @@ const ANG90 = 90;
 const AIMSPREAD = 360 / 64; // 1<<26 BAM
 
 // mobj flags
-const MF_SPECIAL = 1, MF_SOLID = 2, MF_SHOOTABLE = 4, MF_NOSECTOR = 8, MF_NOBLOCKMAP = 16,
+const MF_SPECIAL = 1, MF_SOLID = 2, MF_SHOOTABLE = 4, MF_NOSECTOR = 8, MF_NOBLOCKMAP = 16, MF_AMBUSH = 32,
+  MF_JUSTHIT = 64, MF_JUSTATTACKED = 128,
   MF_SPAWNCEILING = 256, MF_NOGRAVITY = 512, MF_DROPOFF = 0x400, MF_PICKUP = 0x800, MF_NOCLIP = 0x1000,
-  MF_FLOAT = 0x4000, MF_MISSILE = 0x10000, MF_DROPPED = 0x20000, MF_SHADOW = 0x40000, MF_NOBLOOD = 0x80000,
-  MF_CORPSE = 0x100000, MF_COUNTITEM = 0x800000, MF_NOTDMATCH = 0x2000000;
+  MF_FLOAT = 0x4000, MF_INFLOAT = 0x8000, MF_MISSILE = 0x10000, MF_DROPPED = 0x20000, MF_SHADOW = 0x40000, MF_NOBLOOD = 0x80000,
+  MF_CORPSE = 0x100000, MF_COUNTKILL = 0x400000, MF_COUNTITEM = 0x800000, MF_SKULLFLY = 0x1000000, MF_NOTDMATCH = 0x2000000;
+const MF_BY_NAME = { MF_SPECIAL, MF_SOLID, MF_SHOOTABLE, MF_NOSECTOR, MF_NOBLOCKMAP, MF_AMBUSH, MF_JUSTHIT, MF_JUSTATTACKED,
+  MF_SPAWNCEILING, MF_NOGRAVITY, MF_DROPOFF, MF_PICKUP, MF_NOCLIP, MF_FLOAT, MF_INFLOAT, MF_MISSILE, MF_DROPPED, MF_SHADOW,
+  MF_NOBLOOD, MF_CORPSE, MF_COUNTKILL, MF_COUNTITEM, MF_SKULLFLY, MF_NOTDMATCH };
+function parseFlags(s) { let f = 0; for (const k of String(s || '').split('|')) if (k.trim()) f |= MF_BY_NAME[k.trim()] || 0; return f; }
+const FLOATSPEED = 4;
+const BASETHRESHOLD = 100;
 
 // line flags
-const ML_BLOCKING = 1, ML_BLOCKMONSTERS = 2, ML_TWOSIDED = 4, ML_DONTPEGTOP = 8, ML_DONTPEGBOTTOM = 16;
+const ML_BLOCKING = 1, ML_BLOCKMONSTERS = 2, ML_TWOSIDED = 4, ML_DONTPEGTOP = 8, ML_DONTPEGBOTTOM = 16, ML_SOUNDBLOCK = 64;
 
 // weapons / ammo
 const WP_FIST = 0, WP_PISTOL = 1, WP_SHOTGUN = 2, WP_CHAINGUN = 3, WP_MISSILE = 4, WP_PLASMA = 5, WP_BFG = 6,
@@ -249,6 +256,8 @@ const LOOP_DEFS = {
   HDB1: ['HDB1', 'A', -1, 0], HDB3: ['HDB3', 'A', -1, 0], HDB6: ['HDB6', 'A', -1, 0], POB1: ['POB1', 'A', -1, 0],
   POB2: ['POB2', 'A', -1, 0], BRS1: ['BRS1', 'A', -1, 0],
 };
+// monster states (00_a_monsters.js, generated from the Doom tables)
+Object.assign(STATE_DEFS, MONSTER_STATE_DEFS);
 for (const [name, def] of Object.entries(LOOP_DEFS)) {
   const spr = /** @type {string} */ (def[0]), frames = /** @type {string} */ (def[1]), tics = /** @type {any} */ (def[2]), bright = /** @type {any} */ (def[3]);
   const n = frames.length;
@@ -284,9 +293,10 @@ function defMobj(key, o) {
   o.spawnhealth = o.spawnhealth || 1000; o.speed = o.speed || 0; o.damage = o.damage || 0;
   o.flags = o.flags || 0;
   o.spawnstate = o.spawnstate !== undefined ? SN(o.spawnstate) : S_NULL;
-  for (const k of ['seestate', 'painstate', 'missilestate', 'deathstate', 'xdeathstate'])
+  for (const k of ['seestate', 'painstate', 'meleestate', 'missilestate', 'deathstate', 'xdeathstate', 'raisestate'])
     o[k] = o[k] ? SN(o[k]) : S_NULL;
   o.painchance = o.painchance || 0;
+  o.reactiontime = o.reactiontime || 0;
   MT[key] = o.id; MOBJINFO.push(o);
   return o;
 }
@@ -385,6 +395,10 @@ defDecor('HANGTSKULL2', 78, 'HDB6', true, Object.assign({ height: 64 }, HANG));
 defDecor('COLONGIBS', 79, 'POB1', false);
 defDecor('SMALLPOOL', 80, 'POB2', false);
 defDecor('BRAINSTEM', 81, 'BRS1', false);
+
+// monsters and what they shoot (00_a_monsters.js); their behaviour is in 35_enemy.js
+for (const [key, def] of Object.entries(MONSTER_DEFS)) defMobj(key, Object.assign({}, def, { flags: parseFlags(def.flags) }));
+const MONSTER_TYPES = Object.keys(MONSTER_DEFS).filter((k) => MONSTER_DEFS[k].kind === 'monster');
 
 const DOOMEDNUM = {};
 for (const m of MOBJINFO) if (m.doomednum) DOOMEDNUM[m.doomednum] = m.id;

@@ -48,6 +48,14 @@ class Arena {
     this.target = 0; this.startTime = 0; this.countdown = 0; this.time = 0; this.finishedAt = 0;
     this.bodyque = [];
     this.coopStarts = null;
+    this.loadout = null;          // weapon start for this arena (key into LOADOUTS), or null
+    this.lives = undefined;       // Boss Battle: lives per player
+    this.coop = false;            // co-op (Boss Battle): players can't hurt each other, monsters are the enemy
+    this.director = null;         // MonsterDirector when monsters are in play
+    this.monsterCount = 0;        // monsters in the level (corpses included until they are cleaned up)
+    this.playerMobjs = [];        // what monsters look for
+    this.corpseQueue = [];
+    this.monsterKills = 0; this.monsterFrags = false;
   }
 
   run(fn) { const prev = G; G = this; try { return fn(); } finally { G = prev; } }
@@ -67,6 +75,7 @@ class Arena {
         if (mt === undefined) continue;
         const info = MOBJINFO[mt];
         if (info.kind === 'item' && info.pickup && info.pickup.startsWith('key')) continue;
+        if (info.kind === 'monster') continue;   // monsters come from the director, never from the map
         const mo = spawnMobj(x, y, (info.flags & MF_SPAWNCEILING) ? ONCEILINGZ : ONFLOORZ, mt);
         mo.angle = angle; mo.pangle = angle;
         mo.spawnpoint = t;
@@ -79,12 +88,12 @@ class Arena {
   }
 
   // nearest position (within maxR, same sector) where a player fits: no walls, no solid things or players
-  fitSpot(x, y, maxR = 48, avoid) {
+  fitSpot(x, y, maxR = 48, avoid, radius = 16, height = 56) {
     return this.run(() => {
       const sec = this.level.sectorAt(x, y);
       const fits = (px, py) => {
         if (avoid && avoid.some((t) => Math.abs(t.x - px) < 34 && Math.abs(t.y - py) < 34)) return false;
-        const probe = { x: px, y: py, radius: 16, height: 56, flags: MF_SOLID | MF_SHOOTABLE | MF_PICKUP, z: 0 };
+        const probe = { x: px, y: py, radius, height, flags: MF_SOLID | MF_SHOOTABLE | MF_PICKUP, z: 0 };
         return checkPositionProbe(probe, px, py);
       };
       if (fits(x, y)) return { x, y };
@@ -162,13 +171,15 @@ class Arena {
     const starts = this.dmstarts;
     if (!starts.length) return { x: 0, y: 0, angle: 0 };
     // prefer free spots far from living enemies, with some randomness
+    const monsters = this.monsterCount ? Array.from(this.mobjs).filter((m) => m.info.kind === 'monster' && m.health > 0) : [];
     const scored = starts.map((s) => {
       let near = 1e9;
       for (const q of this.players.values()) {
         if (q === p || !q.mo || q.playerstate !== 'live' || q.spectating) continue;
-        if (this.teamsActive && q.team === p.team) continue;
+        if ((this.teamsActive && q.team === p.team) || this.coop) continue;
         near = Math.min(near, Math.hypot(q.mo.x - s.x, q.mo.y - s.y));
       }
+      for (const m of monsters) near = Math.min(near, Math.hypot(m.x - s.x, m.y - s.y));
       return { s, free: this.spotFree(s, p), near };
     });
     const free = scored.filter((e) => e.free);
@@ -250,15 +261,18 @@ class Arena {
     this.run(() => {
       this.leveltime++;
       this.removedMobjs.length = 0;
+      this.playerMobjs.length = 0;
       for (const p of this.players.values()) {
         if (p.spectating) continue;
         p.pviewz = p.viewz;
         playerThink(p);
+        if (p.mo && !p.mo.removed && p.playerstate === 'live') this.playerMobjs.push(p.mo);
       }
       const list = Array.from(this.mobjs);
       for (const mo of list) if (!mo.removed) mobjThinker(mo);
       runThinkers();
       respawnSpecials();
+      if (this.director) this.director.tic();
       for (const s of this.level.sectors) { s.renderFloor = s.floorheight; s.renderCeil = s.ceilingheight; }
     });
   }
@@ -272,9 +286,32 @@ class Arena {
     return false;
   }
 
+  // ---------------------------------------------------------------- monsters
+  onMonsterSpawned(mo, by) { /* bookkeeping hook; the director counts its own spawns */ }
+  onMonsterRaised(mo) { if (this.director) this.director.spawned++; }
+  onMonsterKilled(mo, source, inflictor) {
+    this.monsterKills++;
+    const killer = source && source.player && source !== mo ? source.player : null;
+    if (killer) {
+      killer.killcount++;
+      if (this.monsterFrags) killer.frags += mo.boss ? 5 : 1;   // Boss Battle: the frag box counts monster kills
+    }
+    if (this.director) this.director.onKilled(mo, source);
+    this.events.push({ type: 'monsterKill', mo, killer, boss: !!mo.boss, name: mo.info.name, time: this.leveltime });
+  }
+
   onPlayerKilled(victim, killer, inflictor, source) {
     let kind = 'world';
     const ctx = this.damageCtx;
+    // killed by a monster: no frag lost (Doom's rule), the message names the creature
+    const monster = source && source.info && source.info.kind === 'monster' ? source : null;
+    if (monster) {
+      victim.deaths++;
+      if (victim.lives !== undefined) victim.lives--;
+      const text = (MONSTER_OBITS[monster.info.key] || '%o was killed by a %m.').replace('%o', hudName(victim.name)).replace('%m', monster.info.name);
+      this.events.push({ type: 'kill', victim, killer: null, kind: 'monster', text, time: this.leveltime, monster });
+      return;
+    }
     const self = !killer || killer === victim;
     if (ctx === 'telefrag') kind = 'telefrag';
     else if (ctx === 'crush') kind = 'crush';
@@ -288,14 +325,16 @@ class Arena {
       kind = ['fist', 'pistol', 'shotgun', 'chaingun', 'rocket', 'plasma', 'bfg', 'chainsaw', 'ssg'][w] || 'world';
       if (w === WP_FIST && killer.powers[PW_STRENGTH]) kind = 'berserk';
     } else if (self && source === victim.mo) kind = 'suicide';
-    if (self) victim.frags--; else killer.frags++;
+    if (this.coop && !self) { kind = 'world'; }                     // co-op: no frags between players
+    else if (self) victim.frags--; else killer.frags++;
     victim.deaths++;
+    if (victim.lives !== undefined) victim.lives--;
     if (this.teamsActive) {
       if (self) { if (victim.team >= 0 && this.cfg.teamSuicidePenalty) this.teamScore[victim.team] = Math.max(0, this.teamScore[victim.team] - 1); }
       else if (killer.team !== victim.team && killer.team >= 0) this.teamScore[killer.team]++;
     }
     const text = (OBITS[kind] || OBITS.world).replace('%o', hudName(victim.name)).replace('%k', killer ? hudName(killer.name) : '');
-    this.events.push({ type: 'kill', victim, killer: self ? null : killer, kind, text, time: this.leveltime });
+    this.events.push({ type: 'kill', victim, killer: self || this.coop ? null : killer, kind, text, time: this.leveltime });
   }
 }
 

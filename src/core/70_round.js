@@ -8,6 +8,7 @@ const MODES = {
   tdm: { name: 'TEAM DEATHMATCH', teams: true, respawn: true, minPlayers: 4 },
   elim: { name: 'TEAM ELIMINATION', teams: true, respawn: false, minPlayers: 4 },
   lms: { name: 'LAST MAN STANDING', teams: false, respawn: false, minPlayers: 2 },
+  boss: { name: 'BOSS BATTLE', teams: false, respawn: true, coop: true, minPlayers: 1 },
 };
 const TEAM_NAMES = ['RED', 'BLUE'];
 
@@ -141,11 +142,11 @@ class RoundManager {
   }
 
   // each arena has its own small chance of a weapon start (weights in cfg.loadouts)
-  pickLoadout() {
+  pickLoadout(always) {
     const w = this.cfg.loadouts || {};
     const list = Array.isArray(w) ? w.map((k) => [k, 1]) : Object.entries(w);
     const keys = list.filter(([k, n]) => LOADOUTS[k] && n > 0);
-    if (!keys.length || !(Math.random() < (this.cfg.loadoutChance || 0))) return null;
+    if (!keys.length || (!always && !(Math.random() < (this.cfg.loadoutChance || 0)))) return null;
     let r = Math.random() * keys.reduce((t, [, n]) => t + n, 0);
     for (const [k, n] of keys) { r -= n; if (r <= 0) return k; }
     return keys[0][0];
@@ -189,11 +190,15 @@ class RoundManager {
       let mk = modeKey;
       const tCount = grp.filter((p) => p.csTeam === 2).length, ctCount = grp.length - tCount;
       if (MODES[mk].teams && (grp.length < MODES[mk].minPlayers || !tCount || !ctCount)) mk = MODES[mk].respawn ? 'ffa' : 'lms';
-      if (grp.length < 2) mk = 'ffa';
+      if (grp.length < 2 && mk !== 'boss') mk = 'ffa';
       const L = this.pickMap(grp.length, used);
       used.add(L.id);
       this.mapHistory.push(L.id); if (this.mapHistory.length > 40) this.mapHistory.shift();
-      plan.push({ grp, mk, L, loadout: this.pickLoadout() });
+      const coop = !!MODES[mk].coop;
+      // Boss Battle always starts everyone with a real weapon; the other modes roll for one and, separately, for monsters
+      const loadout = coop ? (this.pickLoadout(true) || 'shotgun') : this.pickLoadout();
+      const monsters = !coop && Math.random() < (this.cfg.monsterChance || 0);
+      plan.push({ grp, mk, L, loadout, monsters });
     }
     return plan;
   }
@@ -209,10 +214,22 @@ class RoundManager {
     arena.modeKey = mk; arena.mode = MODES[mk];
     arena.loadout = item.loadout;
     arena.teamsActive = MODES[mk].teams;
+    arena.coop = !!MODES[mk].coop;
     arena.friendlyFire = this.cfg.friendlyFire;
     arena.mapId = L.id; arena.mapTitle = L.title;
     const n = item.grp.length;
     arena.target = mk === 'ffa' ? Math.min(this.cfg.ffaFrags, 6 + 2 * n) : mk === 'tdm' ? Math.min(this.cfg.tdmFrags, 4 * n) : 0;
+    const mc = this.cfg.monsters || {};
+    if (arena.coop) {
+      arena.monsterFrags = true;
+      arena.director = new MonsterDirector(arena, 'boss', { waves: mc.waves || 5, maxAlive: mc.maxAlive || 36 });
+      arena.lives = mc.lives !== undefined ? mc.lives : 3;
+    } else if (item.monsters) {
+      // a few monsters loose in the level, sized to it
+      const bb = L.bb, area = (bb[2] - bb[0]) * (bb[3] - bb[1]);
+      const count = Math.max(2, Math.min(mc.roamMax || 8, 2 + Math.round(area / 300000) + (n > 8 ? 2 : 0)));
+      arena.director = new MonsterDirector(arena, 'roam', { roamCount: count, maxAlive: mc.maxAlive || 36 });
+    }
     arena.startTime = this.time;
     arena.countdown = this.cfg.countdownTics;
     arena.index = this.arenas.length;
@@ -231,6 +248,7 @@ class RoundManager {
     const color = arena.teamsActive ? (team === 0 ? 3 : 1) : this.colorFor(arena);
     const p = arena.addPlayer(pe.slot, pe.name, team, color);
     p.person = pe; p.isBot = pe.bot;
+    if (arena.coop && arena.lives !== undefined) p.lives = arena.lives;
     pe.arena = arena; pe.player = p; pe.status = 'playing'; pe.spec = null;
     pe.lastActive = this.time;
     if (!atStart) {
@@ -403,7 +421,7 @@ class RoundManager {
       if (p.spectating) continue;
       if (p.playerstate === 'dead') {
         const deadFor = a.leveltime - p.deathTime;
-        if (a.mode.respawn) {
+        if (a.mode.respawn && !(p.lives !== undefined && p.lives <= 0)) {
           const gateOk = p.respawnGate !== false;
           const wantEarly = (p.respawnNow || (p.cmd.buttons & (BT_USE | BT_ATTACK))) && deadFor > this.cfg.minRespawnTics;
           if (gateOk && (wantEarly || deadFor > this.cfg.autoRespawnTics)) {
@@ -452,6 +470,14 @@ class RoundManager {
         if (alive.length <= 1 && this.time > this.cfg.countdownTics) winner = { player: alive[0] || null };
         break;
       }
+      case 'boss': {
+        const d = a.director;
+        const standing = active.filter((p) => p.playerstate === 'live' || (p.lives !== undefined && p.lives > 0));
+        if (d && d.won) winner = this.coopResult(a, true);
+        else if (!standing.length && this.time > this.cfg.countdownTics) winner = this.coopResult(a, false);
+        else if (this.cfg.bossTimeLimitTics && a.time > this.cfg.bossTimeLimitTics) winner = this.coopResult(a, false, true);
+        break;
+      }
     }
     // elimination rounds have their own clock so a hiding last player can't stall the round
     if (!winner && !a.mode.respawn && this.cfg.elimTimeLimitTics && a.time > this.cfg.elimTimeLimitTics) {
@@ -467,12 +493,23 @@ class RoundManager {
     if (winner) this.finishArena(a, winner);
   }
 
+  // Boss Battle result: the best monster hunter is named, each CS2 side's share of the kills is kept for the round credit
+  coopResult(a, won, timeout) {
+    const players = Array.from(a.players.values());
+    const top = players.slice().sort((x, y) => y.frags - x.frags || y.stats.damage - x.stats.damage)[0] || null;
+    const sides = { 2: 0, 3: 0 };
+    for (const p of players) if (p.person && sides[p.person.csTeam] !== undefined) sides[p.person.csTeam] += p.frags;
+    const wave = a.director ? a.director.wave : 0;
+    return { coop: true, won, player: top, sides, wave, timeout: !!timeout };
+  }
+
   finishArena(a, winner) {
     if (a.finished) return;
     a.finished = true;
     a.finishedAt = a.time;
     let text;
-    if (winner.team !== undefined) text = winner.team >= 0 ? TEAM_NAMES[winner.team] + ' TEAM WINS' : 'DRAW';
+    if (winner.coop) text = winner.won ? 'VICTORY' + (winner.player ? ' - ' + winner.player.name + ' ' + winner.player.frags + ' KILLS' : '') : (winner.timeout ? 'TIME UP' : 'OVERRUN') + ' AT WAVE ' + winner.wave;
+    else if (winner.team !== undefined) text = winner.team >= 0 ? TEAM_NAMES[winner.team] + ' TEAM WINS' : 'DRAW';
     else text = winner.player ? winner.player.name + ' WINS' : 'DRAW';
     a.result = Object.assign({ text }, winner);
     for (const p of a.players.values()) { p.frozenEnd = true; }
@@ -483,6 +520,7 @@ class RoundManager {
     for (const a of this.arenas) {
       if (a.finished) continue;
       const players = Array.from(a.players.values());
+      if (a.coop) { this.finishArena(a, this.coopResult(a, !!(a.director && a.director.won), true)); continue; }
       if (a.mode.teams) {
         let s0, s1;
         if (a.modeKey === 'elim') {

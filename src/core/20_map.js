@@ -66,6 +66,7 @@ function sameTeamNoFF(a, b) {
   if (!a || !b || a === b) return false;
   const pa = a.player, pb = b.player;
   if (!pa || !pb) return false;
+  if (G.coop) return !G.friendlyFire;   // co-op: everyone is on the same side
   return G.teamsActive && !G.friendlyFire && pa.team >= 0 && pa.team === pb.team;
 }
 
@@ -91,11 +92,24 @@ function PIT_CheckThing(thing) {
   const blockdist = thing.radius + tt.radius;
   if (Math.abs(thing.x - TM.x) >= blockdist || Math.abs(thing.y - TM.y) >= blockdist) return true;
   if (thing === tt) return true;
+  // a charging lost soul slams into whatever it hits
+  if (tt.flags & MF_SKULLFLY) {
+    const damage = ((P_Random() % 8) + 1) * tt.info.damage;
+    damageMobj(thing, tt, tt, damage);
+    tt.flags &= ~MF_SKULLFLY;
+    tt.momx = tt.momy = tt.momz = 0;
+    setMobjState(tt, tt.info.spawnstate);
+    return false;
+  }
   if (tt.flags & MF_MISSILE) {
     if (tt.z > thing.z + thing.height) return true;
     if (tt.z + tt.height < thing.z) return true;
     if (tt.target === thing) return true;
     if (sameTeamNoFF(tt.target, thing)) return true;
+    // monsters of one kind don't hurt each other with their own shots (the shot still bursts)
+    const st = tt.target;
+    if (st && !thing.player && !st.player && (st.type === thing.type ||
+        (st.type === MT.KNIGHT && thing.type === MT.BARON) || (st.type === MT.BARON && thing.type === MT.KNIGHT))) return false;
     if (!(thing.flags & MF_SHOOTABLE)) return !(thing.flags & MF_SOLID);
     const damage = ((P_Random() % 8) + 1) * tt.info.damage;
     G.damageCtx = 'direct';
@@ -485,6 +499,7 @@ function radiusAttack(spot, source, damage) {
     blockThingsIterator(x, y, (th) => { victims.push(th); return true; });
   for (const th of victims) {
     if (th.removed || !(th.flags & MF_SHOOTABLE)) continue;
+    if (th.type === MT.CYBERDEMON || th.type === MT.MASTERMIND) continue;   // the big ones shrug off blasts
     if (sameTeamNoFF(source, th)) continue;
     const dx = Math.abs(th.x - spot.x), dy = Math.abs(th.y - spot.y);
     let d = Math.max(dx, dy) - th.radius;

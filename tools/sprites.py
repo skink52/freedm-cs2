@@ -22,6 +22,8 @@ PAL = assets.PAL.astype(np.int32)
 
 SHAPE = {}
 for s in 'PLAY MISL'.split(): SHAPE[s] = 'rot8'
+# monsters: carved from their 8 rotations like the players (death and gib frames have no rotations and become stars)
+for s in 'POSS SPOS CPOS TROO SARG HEAD SKUL BOSS BOS2 SKEL FATT BSPI PAIN VILE CYBR SPID'.split(): SHAPE[s] = 'rot8'
 for s in 'BAR1 SOUL MEGA PINV PINS BON1 BON2 CAND CBRA COLU TLMP TLP2 ELEC COL1 COL5 CEYE FSKU TRE1 TRE2 TBLU TGRN TRED SMBT SMGT SMRT SMIT POL3'.split(): SHAPE[s] = 'lathe'
 for s in 'ARM1 ARM2 PSTR STIM MEDI CLIP AMMO ROCK BROK CELL CELP SHEL SBOX BPAK'.split(): SHAPE[s] = 'box'
 for s in 'SHOT SGN2 MGUN LAUN PLAS BFUG CSAW'.split(): SHAPE[s] = 'weapon'
@@ -32,17 +34,36 @@ FILES = os.listdir(SPR_DIR)
 def rotations(sprite, frame):
     """returns dict rot -> (rgba, (leftoff, topoff), mirrored); rot 0 = no rotations"""
     s = sprite.lower(); f = frame.lower()
+    f = {'0': '[', '1': '^', '2': ']'}.get(f, f)   # frames past Z: Doom's [ \ ] are keyed 0 1 2 (Freedoom names the \ one ^)
     out = {}
     for fn in FILES:
         name = fn[:-4]
         if not name.startswith(s): continue
         rest = name[4:]
-        parts = re.findall(r'([a-z\[\]\\])(\d)', rest)
+        parts = re.findall(r'([a-z\[\]\^])(\d)', rest)
         for i, (fr, rot) in enumerate(parts):
             if fr != f: continue
             img, off = assets.sprite(name)
             out[int(rot)] = (img, off, i == 1)
     return out
+
+def shrink(idx, off, s):
+    """palette-index image at 1/s resolution: a cell is opaque if any pixel in it is, coloured by its first opaque pixel"""
+    if s == 1: return idx, off
+    h, w = idx.shape
+    H, W = -(-h // s), -(-w // s)
+    pad = np.full((H * s, W * s), -1, idx.dtype); pad[:h, :w] = idx
+    blocks = pad.reshape(H, s, W, s).transpose(0, 2, 1, 3).reshape(H, W, s * s)
+    opaque = blocks >= 0
+    first = opaque.argmax(-1)
+    out = np.where(opaque.any(-1), np.take_along_axis(blocks, first[..., None], -1)[..., 0], -1)
+    return out, (off[0] / s, off[1] / s)
+
+def voxel_scale(rots):
+    """voxel size for a sprite: 1 unit up to the marine's size, 2 for the big creatures, 4 for the huge ones.
+    Keeps every model near the players' triangle count (a 1-unit spider mastermind would be 50 MB)."""
+    m = max(max(img.shape) for img, _, _ in rots.values())
+    return 1 if m <= 60 else 2 if m <= 130 else 4
 
 def pal_index_image(rgba):
     rgb = rgba[..., :3].astype(np.int32)
@@ -217,8 +238,11 @@ def mesh_voxels(occ, axes, faces):
             if (sl < 0).all(): continue
             used = np.zeros(sl.shape, bool)
             U, V = sl.shape
-            for i in range(U):
-                for j in range(V):
+            # only rows/cells with an exposed voxel are worth visiting (a big monster is a thin shell in a large box)
+            rows = np.nonzero((sl >= 0).any(axis=1))[0]
+            for i in rows:
+                cols = np.nonzero(sl[i] >= 0)[0]
+                for j in cols:
                     c = sl[i, j]
                     if c < 0 or used[i, j]: continue
                     w = 1
@@ -421,8 +445,13 @@ def main():
             mat = write_star_material(mkey, img)
             write_model(mkey, star_tris(mkey, img, off), {'fdm_spr': mat})
         else:
+            vs = 1
             if shape == 'rot8':
-                ri = {r: (pal_index_image(rots[r][0]), rots[r][1], rots[r][2]) for r in range(1, 9)}
+                vs = voxel_scale(rots)
+                ri = {}
+                for r in range(1, 9):
+                    idx, off = shrink(pal_index_image(rots[r][0]), rots[r][1], vs)
+                    ri[r] = (idx, off, rots[r][2])
                 occ, axes, samples = carve_rot8(ri, FORWARD_LIMIT if sprite == 'PLAY' else None)
                 faces = colour_rot8(occ, axes, samples)
             else:
@@ -435,6 +464,7 @@ def main():
                 else:
                     occ, axes, faces = build_slab(idx, off, 6)
             vt = mesh_voxels(occ, axes, faces)
+            if vs != 1: vt = [(np.multiply(c0, vs), np.multiply(c1, vs), np.multiply(c2, vs), n, c) for c0, c1, c2, n, c in vt]
             write_model(mkey, voxel_tris(vt), {'fdm_pal': pal_paths[0]}, skins)
         models[key] = shape
         stats[shape] = stats.get(shape, 0) + 1

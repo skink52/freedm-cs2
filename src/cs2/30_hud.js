@@ -59,6 +59,7 @@ function hudReset(slot) {
 
 // an arena result as the HUD shows it (short player name)
 function hudResult(r) {
+  if (r.coop) return r.won ? "VICTORY" : r.timeout ? "TIME UP" : "OVERRUN";
   return r.player && r.team === undefined ? hudName(r.player.name) + " WINS" : r.text;
 }
 

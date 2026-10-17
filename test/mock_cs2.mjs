@@ -87,8 +87,10 @@ function musicEvent(id, on) {
   music.byPool[t.pool] = (music.byPool[t.pool] || 0) + 1;
   if (music.playing && time < music.playing.until - 0.05) music.problems.push(`t=${time.toFixed(1)} ${id} started over ${music.playing.id}`);
   const rm = ctx.__dbg && ctx.__dbg().rm;
-  const respawn = rm && { ffa: true, tdm: true, elim: false, lms: false }[rm.modeKey];
-  if (rm && (respawn ? 'long' : 'short') !== t.pool) music.problems.push(`t=${time.toFixed(1)} ${id} (${t.pool}) in a ${rm.modeKey} round`);
+  const respawn = rm && { ffa: true, tdm: true, boss: true, elim: false, lms: false }[rm.modeKey];
+  // the theme (pool opener) opens every round; then the round's own pool
+  if (t.pool === 'opener') { if (music.starts > 1 && music.lastRound === rm.roundNumber) music.problems.push(`t=${time.toFixed(1)} theme played twice in round ${rm.roundNumber}`); music.lastRound = rm.roundNumber; }
+  else if (rm && (respawn ? 'long' : 'short') !== t.pool) music.problems.push(`t=${time.toFixed(1)} ${id} (${t.pool}) in a ${rm.modeKey} round`);
   music.playing = { id, until: time + t.seconds };
 }
 const hudXml = fs.readFileSync(path.join(root, 'out/addon/panorama/layout/custom_game/freedm.xml'), 'utf8');
@@ -198,7 +200,10 @@ const api = { Instance, CSInputs, CustomCameraMode, CSMoveType, CSRoundEndReason
 
 let src = fs.readFileSync(process.env.FDM_SCRIPT || path.join(root, 'out/addon/maps/scripts/freedm.js'), 'utf8');
 src = src.replace(/^import \{[^}]+\} from "cs_script\/point_script";/m, 'const { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, CSRoundEndReason, Entity } = __api;');
-if (OPTS.includes('elimonly')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 0, tdm: 0, elim: 100, lms: 0 }');
+if (OPTS.includes('elimonly')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 0, tdm: 0, elim: 100, lms: 0, boss: 0 }');
+if (OPTS.includes('bossonly')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 0, tdm: 0, elim: 0, lms: 0, boss: 100 }');
+if (OPTS.includes('noboss')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 35, tdm: 35, elim: 20, lms: 10, boss: 0 }');
+if (OPTS.includes('monsters')) src = src.replace('MONSTER_CHANCE: 0.15', 'MONSTER_CHANCE: 1');
 if (OPTS.includes('hudcheck')) src = src.replace('const HUD_LINE_CHECK = false;', 'const HUD_LINE_CHECK = true;');
 if (OPTS.includes('nolinecache')) src = src.replace(/function hudSame\(slot, prefix, value\) \{/, 'function hudSame(slot, prefix, value) { return false;');
 src += '\nglobalThis.__dbg = () => ({ rm, views, parked, hudCheckMiss, hudCache, phase });\n';

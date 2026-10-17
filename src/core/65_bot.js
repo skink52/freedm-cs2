@@ -117,13 +117,24 @@ function botThink(arena, p) {
   if (--b.retarget <= 0) {
     b.retarget = 6 + Math.round((1 - skill) * 8);
     b.aimErr = (P_Random() - 128) / 128 * (1 - skill) * 28;   // a fresh aiming error each time, held until the next
-    let best = null, bestd = 2500;
+    /** @type {any} */ let best = null; let bestd = 2500;
     arena.run(() => {
-      for (const q of arena.players.values()) {
-        if (q === p || q.spectating || q.playerstate !== 'live' || !q.mo) continue;
-        if (arena.teamsActive && q.team === p.team) continue;
-        const d = Math.hypot(q.mo.x - mo.x, q.mo.y - mo.y);
-        if (d < bestd && checkSight(mo, q.mo)) { best = q; bestd = d; }
+      if (!arena.coop) {
+        for (const q of arena.players.values()) {
+          if (q === p || q.spectating || q.playerstate !== 'live' || !q.mo) continue;
+          if (arena.teamsActive && q.team === p.team) continue;
+          const d = Math.hypot(q.mo.x - mo.x, q.mo.y - mo.y);
+          if (d < bestd && checkSight(mo, q.mo)) { best = { mo: q.mo, q }; bestd = d; }
+        }
+      }
+      // monsters: in a deathmatch they only matter when close (no frag for them); in Boss Battle they are the game
+      if (arena.monsterCount) {
+        for (const m of arena.mobjs) {
+          if (m.info.kind !== 'monster' || m.health <= 0) continue;
+          let d = Math.hypot(m.x - mo.x, m.y - mo.y);
+          if (!arena.coop) { if (d > 700 && m.target !== mo) continue; d *= 1.5; }
+          if (d < bestd && checkSight(mo, m)) { best = { mo: m, q: null }; bestd = d; }
+        }
       }
       if (!best && (!b.goal || b.goal.removed || (arena.leveltime & 63) === 0)) {
         let gi = null, gd = 900;
@@ -145,12 +156,13 @@ function botThink(arena, p) {
         b.goal = gi;
       }
     });
-    if (best !== b.target) b.reactUntil = arena.leveltime + Math.round((1 - skill) * 30);   // reaction time on a new target
+    if (!best || !b.target || best.mo !== b.target.mo) b.reactUntil = arena.leveltime + Math.round((1 - skill) * 30);   // reaction time on a new target
     b.target = best;
   }
   let desired = b.wanderAngle;
   const t = b.target;
-  if (t && t.mo && t.playerstate === 'live') {
+  const targetAlive = t && t.mo && !t.mo.removed && t.mo.health > 0 && (!t.q || t.q.playerstate === 'live');
+  if (targetAlive) {
     const dist = Math.hypot(t.mo.x - mo.x, t.mo.y - mo.y);
     desired = pointToAngle(mo.x, mo.y, t.mo.x, t.mo.y) + (b.aimErr || 0);
     const w = botWeaponFor(p, dist);
@@ -168,11 +180,20 @@ function botThink(arena, p) {
     if ((arena.leveltime % 17) === (p.slot % 17) && !(b.unstickUntil > arena.leveltime)) {
       b.avoid = b.avoid || new Map();
       const enemies = [];
-      for (const q of arena.players.values()) {
-        if (q === p || q.spectating || q.playerstate !== 'live' || !q.mo) continue;
-        if (arena.teamsActive && q.team === p.team) continue;
-        if ((b.avoid.get(q.slot) || 0) > arena.leveltime) continue;
-        enemies.push({ q, d: Math.hypot(q.mo.x - mo.x, q.mo.y - mo.y) });
+      if (!arena.coop) {
+        for (const q of arena.players.values()) {
+          if (q === p || q.spectating || q.playerstate !== 'live' || !q.mo) continue;
+          if (arena.teamsActive && q.team === p.team) continue;
+          if ((b.avoid.get(q.slot) || 0) > arena.leveltime) continue;
+          enemies.push({ q, d: Math.hypot(q.mo.x - mo.x, q.mo.y - mo.y) });
+        }
+      } else {
+        // Boss Battle: hunt the nearest monsters
+        for (const m of arena.mobjs) {
+          if (m.info.kind !== 'monster' || m.health <= 0) continue;
+          if ((b.avoid.get('m' + m.id) || 0) > arena.leveltime) continue;
+          enemies.push({ q: { mo: m, slot: 'm' + m.id }, d: Math.hypot(m.x - mo.x, m.y - mo.y) });
+        }
       }
       enemies.sort((x, y) => x.d - y.d);
       const route = (tx, ty, tmo) => arena.run(() => {
@@ -253,5 +274,5 @@ function botThink(arena, p) {
   const turn = angleDiff(mo.angle, desired);
   const maxTurn = 10 + 20 * skill;
   cmd.angle = normAngle(mo.angle + Math.max(-maxTurn, Math.min(maxTurn, turn)));
-  if (!t && !b.goal) b.wanderAngle = normAngle(b.wanderAngle);
+  if (!targetAlive && !b.goal) b.wanderAngle = normAngle(b.wanderAngle);
 }
