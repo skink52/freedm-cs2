@@ -65,9 +65,9 @@ def loading_screen():
     # modes, left
     y = 590
     paste_text(base, 'EVERY ROUND', 130, y, 4, gold); y += 56
-    for line in ['FREE FOR ALL', 'TEAM DEATHMATCH', 'TEAM ELIMINATION', 'LAST MAN STANDING', '', '32 DEATHMATCH LEVELS', 'UP TO 4 ARENAS AT ONCE']:
+    for line in ['FREE FOR ALL', 'TEAM DEATHMATCH', 'BOSS BATTLE', 'TEAM ELIMINATION', 'LAST MAN STANDING', '', '32 DEATHMATCH LEVELS', 'UP TO 4 ARENAS AT ONCE']:
         if line: paste_text(base, line, 130, y, 3, white)
-        y += 38
+        y += 36
     # controls, right
     base.alpha_composite(Image.new('RGBA', (1120, 470), (0, 0, 0, 175)), (760, 560))
     x0, x1, y = 800, 1080, 590
@@ -96,9 +96,10 @@ def overview_screen(radar_img):
     y = 440
     paste_text(base, '32 DEATHMATCH LEVELS', 110, y, 5, gold); y += 80
     for line in ['UP TO 64 PLAYERS, 4 ARENAS', 'SAME MODE IN EVERY ARENA', '', 'FREE FOR ALL', 'TEAM DEATHMATCH',
-                 'TEAM ELIMINATION', 'LAST MAN STANDING', '', 'RANDOM WEAPON STARTS', 'LATE JOINERS REPLACE BOTS', 'RETRO FM SOUNDTRACK']:
+                 'BOSS BATTLE: CO-OP VS MONSTERS', 'TEAM ELIMINATION', 'LAST MAN STANDING', '',
+                 'WEAPON STARTS, STRAY MONSTERS', 'LATE JOINERS REPLACE BOTS', 'FAST SOUNDTRACK']:
         if line: paste_text(base, line, 110, y, 3, white)
-        y += 40
+        y += 38
     paste_text(base, DISCLAIMER, 110, 1040, 2, grey)
     path = os.path.join(OUT, 'panorama/images/map_icons/screenshots/1080p')
     base.convert('RGB').save(os.path.join(path, MAP + '_2.png'))

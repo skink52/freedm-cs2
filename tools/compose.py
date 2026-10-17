@@ -2,6 +2,7 @@
 previews and music/tracks.json). Everything is original and generated from seeds; nothing is sampled.
 
 usage: compose.py [ids...] [--wav-only] [--short]
+music/tracks.json keeps any entries that are not generated tracks (the trailer theme) and gets ours replaced.
 Each track is a fast heavy-game-music piece in the reference's tempo range (~150 bpm +-10 %) and a minor key, with a
 real song structure (intro, verse, pre-chorus, chorus with a returning hook, breakdown, solo, final chorus, outro),
 rendered with tools/synth.py, loudness-normalised with ffmpeg loudnorm (two-pass, same target as tools/music.py) and
@@ -41,19 +42,19 @@ PATTERNS = {
 
 TRACKS = [
     dict(id='gen01', title='Ferrous Pulse', seed=1101, bpm=150, root=38, key='D minor', scale='phrygian', style='industrial',
-         pool=[0, 0, 1, 3, 5, 6, 10, -2], prog=[0, 0, 3, 5], prog2=[0, 1, 0, 6], mix=dict(pad=-11, lead=-7.5),
+         pool=[0, 0, 1, 3, 5, 6, 10, -2], prog=[0, 0, 3, 5], prog2=[0, 1, 0, 6], mix=dict(pad=-11, lead=-6),
          sections=[('intro', 8), ('verse', 16), ('pre', 8), ('chorus', 16), ('verse', 8), ('pre', 8), ('chorus', 16),
                    ('breakdown', 12), ('solo', 16), ('chorus', 16), ('outro', 4)]),
     dict(id='gen02', title='Chainsaw Vespers', seed=2202, bpm=164, root=45, key='A minor', scale='harmonic', style='thrash',
-         pool=[0, 1, 6, 7, 5, 3, 10, -2, -5], prog=[0, 8, 6, 7], prog2=[0, 1, 0, 3], mix=dict(pad=-14, lead=-7),
+         pool=[0, 1, 6, 7, 5, 3, 10, -2, -5], prog=[0, 8, 6, 7], prog2=[0, 1, 0, 3], mix=dict(pad=-14, lead=-5.5),
          sections=[('intro', 8), ('verse', 16), ('pre', 8), ('chorus', 16), ('verse', 16), ('pre', 8), ('chorus', 16),
                    ('breakdown', 8), ('solo', 16), ('chorus', 16), ('outro', 4)]),
     dict(id='gen03', title='Low Orbit of Hell', seed=3303, bpm=140, root=43, key='G minor', scale='minor', style='doom',
-         pool=[0, 6, 5, 3, 1, 8, 10], prog=[0, 5, 3, 1], prog2=[0, 6, 5, 0], mix=dict(pad=-11, lead=-7),
+         pool=[0, 6, 5, 3, 1, 8, 10], prog=[0, 5, 3, 1], prog2=[0, 6, 5, 0], mix=dict(pad=-11, lead=-5.5),
          sections=[('intro', 8), ('verse', 16), ('pre', 8), ('chorus', 16), ('verse', 8), ('chorus', 8),
                    ('breakdown', 16), ('solo', 12), ('chorus', 16), ('outro', 4)]),
     dict(id='gen04', title='Valkyrie Fragstorm', seed=4404, bpm=156, root=40, key='E minor', scale='minor', style='heroic',
-         pool=[0, 3, 5, 7, 10, 8, 12, -2], prog=[0, 8, 3, 10], prog2=[0, 5, 8, 10], mix=dict(pad=-10, lead=-6.5),
+         pool=[0, 3, 5, 7, 10, 8, 12, -2], prog=[0, 8, 3, 10], prog2=[0, 5, 8, 10], mix=dict(pad=-10, lead=-5),
          sections=[('intro', 8), ('verse', 16), ('pre', 8), ('chorus', 16), ('verse', 8), ('pre', 8), ('chorus', 16),
                    ('breakdown', 8), ('solo', 16), ('chorus', 16), ('outro', 4)]),
 ]
@@ -631,9 +632,14 @@ def main():
                         os.path.join(OUT, 'preview_%s.mp3' % spec['id'])], check=True)
         tracks.append({'id': spec['id'], 'file': spec['id'] + '.mp3', 'pool': 'long', 'title': spec['title'],
                        'by': 'Generated for Hellmatch with tools/compose.py (original, CC0)', 'seconds': round(seconds(mp3), 1)})
-    if tracks and not args and not short:
-        json.dump(tracks, open(os.path.join(OUT, 'tracks.json'), 'w'), indent=1)
-        print('wrote music/tracks.json')
+    if tracks and not short:
+        # merge into music/tracks.json: keep entries that are not ours (e.g. the trailer theme), replace ours
+        tj = os.path.join(OUT, 'tracks.json')
+        old = json.load(open(tj)) if os.path.exists(tj) else []
+        mine = {t['id']: t for t in tracks}
+        merged = [mine.pop(t['id'], t) for t in old] + list(mine.values())
+        json.dump(merged, open(tj, 'w'), indent=1)
+        print('wrote music/tracks.json (%d entries)' % len(merged))
 
 
 if __name__ == '__main__':

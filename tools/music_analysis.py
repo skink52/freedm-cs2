@@ -2,7 +2,7 @@
 
 usage: music_analysis.py <audio file> [--json]
 Only numpy, scipy and ffmpeg/ffprobe are needed. Used to analyse the reference track for the generated Hellmatch
-music (music/analysis.md) and to check the generated tracks against it (tools/compose.py --check).
+music (music/analysis.md) and to check the generated tracks against it.
 """
 import json, os, subprocess, sys, tempfile
 import numpy as np

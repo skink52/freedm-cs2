@@ -1,5 +1,12 @@
 [
  {
+  "id": "theme",
+  "file": "theme.mp3",
+  "pool": "opener",
+  "title": "Hellmatch Theme (trailer)",
+  "by": "skink52"
+ },
+ {
   "id": "gen01",
   "file": "gen01.mp3",
   "pool": "long",
