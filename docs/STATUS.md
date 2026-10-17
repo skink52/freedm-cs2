@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 03:00 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 03:20 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -284,7 +284,7 @@ only after waiting. Written and verified (sha1): maps/scripts/freedm.js, TESTING
   Removed volume_convar from the music events (tools/extras.py); soundevents_addon.vsndevts re-sent. NOT YET TESTED:
   check the spam is gone and the music volume slider still turns the music down.
 
-## Update 18 Oct 03:00 - monsters, Boss Battle, monsters in deathmatch, theme music (the 21:51 scheduled run)
+## Update 18 Oct 03:20 - monsters, Boss Battle, monsters in deathmatch, theme music (the 21:51 scheduled run)
 Zach (21:21): make the trailer track the first song in game; generate similar fast-paced tracks; add a Boss Battle mode
 (hordes of Freedoom monsters, then a boss); monster spawns as a chance roll in non-PvM rounds like the weapon starts.
 Repo commits 11a49b7 + 8ef8ea2 (pushed to main). Script v0.2.0. NOT YET RUN IN CS2.
@@ -292,8 +292,9 @@ Delivered to the PC and verified (sha1 / pixels / decoded audio): maps/mg_hellma
 kept as ref/pc/mg_hellmatch_pc_2110.vmap, gitignored), maps/scripts/freedm.js, soundevents_addon.vsndevts, 5 music
 MP3s, 43 HUD string images + freedm.css, 3 loading screens, README/TESTING/MUSIC_CREDITS (content + game), and the
 bulk set of 1,245 new files (624 model files, 564 sprite materials, 57 monster wavs; ~250 MB) in 25 batches by a
-helper agent (the session limit cut it at batch 8 at ~23:10; resumed 02:52 after the reset, see below for the
-result). Zach must open the map in Hammer and do a full build (312 new models compile; the vmap has 502 cache
+helper agent (the session limit cut it at batch 8 at ~23:10; resumed 02:52 after the reset: 1,245/1,245 written,
+0 rejected, 12 spot checks + 4 of mine matched; the outputs folder adds a metadata block to WAVs too, so compare
+wavs by samples, not sha1). Zach must open the map in Hammer and do a full build (312 new models compile; the vmap has 502 cache
 props, 94 sound events, 14 music events), then `disconnect` + run the map.
 
 - Monsters (src/core/00_a_monsters.js + 35_enemy.js): the 17 Freedoom creatures (zombie, shotgun zombie, minigun
