@@ -9,6 +9,7 @@ OUT = sys.argv[1]
 SKY = sys.argv[2] if len(sys.argv) > 2 else 'SKY1'
 
 MUSIC_VOLUME = 0.7          # music loudness (each player's own music volume setting scales it too)
+MUSIC_MODE = 'menuconvar'   # see sounds(): menuconvar | music | mega
 
 SOUNDS = ('barexp bdcls bdopn bfg dbcls dbload dbopn dorcls doropn dshtgn firxpl getpow itemup itmbk noway oof pdiehi pistol '
           'plasma pldeth plpain pstart pstop punch rlaunc rxplod sawful sawhit sawidl sawup shotgn slop stnmov telept wpnup '
@@ -55,10 +56,27 @@ def sounds():
         ev += ['\t"fdm.%s" =' % s, '\t{', '\t\tbase = "fdm.base"', '\t\tvsnd_files_track_01 = "sounds/fdm/ds%s.vsnd"' % s, '\t}']
     # music (tools/music.py): csgo_music plays the same for everyone, at each player's own music volume (snd_musicvolume
     # applies by itself; a volume_convar line makes CS2 look for snd_musicvolume_rush/_casual/... and spam the console)
+    # MUSIC_MODE (env FDM_MUSIC_MODE):
+    #   menuconvar: csgo_music with volume_convar snd_menumusic_volume (Valve's own music-box example; the stack still
+    #               follows the music volume slider, and may stop looking up snd_musicvolume_<mode>, which spams the
+    #               console with "Unable to acquire convar value: snd_musicvolume_rush")
+    #   music:      plain csgo_music (follows snd_musicvolume; spams the console on some builds)
+    #   mega:       csgo_mega with a flat distance curve: no console spam, but the music follows the effects volume,
+    #               not the music slider
     mj = os.path.join(OUT, '_gen/music.json')
+    mode = os.environ.get('FDM_MUSIC_MODE', MUSIC_MODE)
     for t in (json.load(open(mj)) if os.path.exists(mj) else []):
-        ev += ['\t"fdm_music.%s" =' % t['id'], '\t{', '\t\ttype = "csgo_music"', '\t\tvolume = %.2f' % MUSIC_VOLUME,
-               '\t\tvsnd_files = "sounds/fdm/music/%s.vsnd"' % t['id'], '\t}']
+        if mode == 'mega':
+            ev += ['\t"fdm_music.%s" =' % t['id'], '\t{', '\t\ttype = "csgo_mega"', '\t\tvolume = %.2f' % MUSIC_VOLUME, '\t\tpitch = 1.0',
+                   '\t\tvsnd_files_track_01 = "sounds/fdm/music/%s.vsnd"' % t['id'],
+                   '\t\tdistance_volume_mapping_curve =', '\t\t[',
+                   '\t\t\t[', '\t\t\t\t0.0, 1.0, 0.0, 0.0,', '\t\t\t\t2.0, 3.0,', '\t\t\t],',
+                   '\t\t\t[', '\t\t\t\t100000.0, 1.0, 0.0, 0.0,', '\t\t\t\t2.0, 3.0,', '\t\t\t],',
+                   '\t\t]', '\t}']
+        else:
+            ev += ['\t"fdm_music.%s" =' % t['id'], '\t{', '\t\ttype = "csgo_music"', '\t\tvolume = %.2f' % MUSIC_VOLUME]
+            if mode == 'menuconvar': ev.append('\t\tvolume_convar = "snd_menumusic_volume"')
+            ev += ['\t\tvsnd_files = "sounds/fdm/music/%s.vsnd"' % t['id'], '\t}']
     ev.append('}')
     os.makedirs(os.path.join(OUT, 'soundevents'), exist_ok=True)
     open(os.path.join(OUT, 'soundevents/soundevents_addon.vsndevts'), 'w', newline='\n').write('\n'.join(ev) + '\n')
