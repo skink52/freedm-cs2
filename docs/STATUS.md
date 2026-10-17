@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 18:20 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 03:00 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -284,6 +284,80 @@ only after waiting. Written and verified (sha1): maps/scripts/freedm.js, TESTING
   Removed volume_convar from the music events (tools/extras.py); soundevents_addon.vsndevts re-sent. NOT YET TESTED:
   check the spam is gone and the music volume slider still turns the music down.
 
+## Update 18 Oct 03:00 - monsters, Boss Battle, monsters in deathmatch, theme music (the 21:51 scheduled run)
+Zach (21:21): make the trailer track the first song in game; generate similar fast-paced tracks; add a Boss Battle mode
+(hordes of Freedoom monsters, then a boss); monster spawns as a chance roll in non-PvM rounds like the weapon starts.
+Repo commits 11a49b7 + 8ef8ea2 (pushed to main). Script v0.2.0. NOT YET RUN IN CS2.
+Delivered to the PC and verified (sha1 / pixels / decoded audio): maps/mg_hellmatch.vmap (rebuilt from his 09:45 save,
+kept as ref/pc/mg_hellmatch_pc_2110.vmap, gitignored), maps/scripts/freedm.js, soundevents_addon.vsndevts, 5 music
+MP3s, 43 HUD string images + freedm.css, 3 loading screens, README/TESTING/MUSIC_CREDITS (content + game), and the
+bulk set of 1,245 new files (624 model files, 564 sprite materials, 57 monster wavs; ~250 MB) in 25 batches by a
+helper agent (the session limit cut it at batch 8 at ~23:10; resumed 02:52 after the reset, see below for the
+result). Zach must open the map in Hammer and do a full build (312 new models compile; the vmap has 502 cache
+props, 94 sound events, 14 music events), then `disconnect` + run the map.
+
+- Monsters (src/core/00_a_monsters.js + 35_enemy.js): the 17 Freedoom creatures (zombie, shotgun zombie, minigun
+  zombie, serpentipede, flesh worm, stealth worm, deadflare, trilobite, pain bringer, pain lord, dark soldier, combat
+  slug, technospider, summoner, flame bringer, assault tripod, large technospider) with Doom's own state tables and
+  behaviour: tools/monsters_gen.py reads info.c/info.h/sounds.h of the Doom source (github id-Software/DOOM) and
+  writes the tables as data (frames, tics, health, speed, radius, flags as strings resolved in 00_defs.js); the
+  behaviour (A_Look/A_Chase/attacks, 8-direction movement, noise alerts, infighting, arch-vile resurrection,
+  pain elemental skulls, revenant tracers, mancubus spreads, lost-soul charges) is our own port in 35_enemy.js.
+  Monsters open normal/fast doors (specials 1, 32-34, 117) and use teleporters and the few walkover lines Doom lets
+  them (39, 97, 4, 10, 88). Zombies drop their weapon. Big ones (tripod, large technospider) ignore splash damage.
+  Only the last 24 monster corpses stay per arena (each is a prop). Lost souls capped at 20 per arena.
+- Models: the sprite generator carves monsters from their 8 rotations like the players; sprites wider/taller than
+  60 px are carved at 2 units per voxel, over 130 at 4 (a 1-unit large technospider was 50 MB per frame; now every
+  model is 1-6 MB like the marine). Death/gib frames are stars. 502 models in all (was 190), 1,004 model files +
+  564 star-material files; models/fdm/spr is 346 MB. Frames past Z (arch-vile heal [ \ ]) are keyed 0 1 2 in model
+  names (Freedoom names the \ frame ^). The map rebuild (tools/vmap_env.py, group fdm_env) now adds cache props for
+  models and point_soundevents for sounds that the user's map doesn't have yet (312 props, 57 sounds this time), on
+  a 32x40 grid in the cache room.
+- Boss Battle (MODES.boss, co-op): src/core/36_monsters.js MonsterDirector. Waves 1-4 are planned from a budget
+  (4 + 2.5 x players) x (0.7 + 0.4 x wave) over a roster with costs/tiers (zombies and imps first, trilobites /
+  pain bringers / dark soldiers from wave 3, combat slugs / technospiders / pain lords from wave 4, flame bringers
+  on the boss wave's escort); the 5th wave is the boss: assault tripod (health 4000 x 0.4+0.12n), large technospider
+  in arenas of 6+ when it fits, otherwise a pack of pain lords (1 + ceil(n/4), 1000 x (1 + m/2) hp), plus an escort.
+  Monsters arrive through teleport fog at spots far from and out of sight of the players (DM starts + item spots,
+  only in sectors reachable from the starts via the bots' nav graph), trickled in under an alive cap
+  min(36, 8 + 2n, 6 + area/120000). Monsters that haven't moved for 25 s while nobody is within 400 units are
+  teleported back near the players (pits, closed corners). 3 lives each (p.lives), out of lives = spectating.
+  Win = boss dead (VICTORY); lose = everyone out of lives (OVERRUN) or 8 min (TIME UP). Boss arenas always start
+  everyone with a weapon start. Players can't hurt each other (sameTeamNoFF with G.coop), no frags between players;
+  the frag box counts monster kills (boss = 5). Result text "VICTORY - name N KILLS" / "OVERRUN AT WAVE n". CS2
+  round credit: the side (T/CT) with more monster kills in a won arena. Player deaths by monsters are CS2 world
+  kills (no -1); monster kills are not CS2 kills. HUD: top-right "WAVE 2 OF 5 - 6:40" / "14 MONSTERS  LIVES 3",
+  centre "WAVE n OF 5", "WAVE CLEARED", "BOSS INCOMING", "BOSS DOWN!"; chat line when the boss appears.
+  Mode weights now ffa 30 / tdm 30 / boss 15 / elim 15 / lms 10. CONFIG.MONSTERS {waves, lives, maxAlive, roamMax},
+  BOSS_SECONDS 480. Bots: in co-op they hunt monsters; in deathmatch they shoot monsters within 700 units or that
+  target them.
+- Monsters in deathmatch: CONFIG.MONSTER_CHANCE 0.15 per arena (rolled in planArenas like the loadout). 2-8 monsters
+  by level area (roam roster: zombies, imps, demons, lost souls, cacos, a few knights/revenants/mancubi/arachnotrons/
+  barons), first ones placed before the countdown ends, replacements 15-25 s after a kill. Doom's rules: killing a
+  monster is no frag, dying to one costs none (CS2: world kill). Chat line shows "(n, MONSTERS)".
+- Music: music/tracks.json + files are extra tracks (tools/music.py extra_tracks: two-pass loudnorm to -16 LUFS,
+  MP3 128k 44.1k stereo, cached in build/music by size+mtime). theme.mp3 = the trailer track (49 s), pool "opener":
+  55_music.js plays it first in every round (CONFIG.MUSIC_OPENER "every" | "first" | "off"), then the round's pool.
+  Generated tracks gen01-gen04 (tools/synth.py + tools/compose.py, written by a helper agent; see music/analysis.md)
+  go in the long pool. MUSIC_CREDITS lists them.
+- Tests: mock_cs2 options bossonly / noboss / monsters (MONSTER_CHANCE 1); sim.cjs MONSTERS=1 and mode arg "boss".
+  Runs: bossonly 10h+6b 300 s (0 errors), noboss+monsters+churn (0 errors, kills on), bossonly+churn+hudcheck with
+  4h+28b (4 boss arenas, round ended, 0 hud differences, think avg 2.2 ms, max 52 ms). sim 16 bots 8 mixed rounds OK;
+  boss rounds with 8 bots end in 2.5-5 min (victory or time up at wave 3-5): the balance is tuned on bots only.
+  tsc: 0 errors (the PC script had 3).
+- Docs: README_HELLMATCH.md (modes table with Boss Battle, monsters section, music, settings, credits), TESTING items
+  16-19 (theme music, Boss Battle checklist incl. how to force it via MODE_WEIGHTS, monsters in deathmatch, frame
+  rate), WORKSHOP_DESCRIPTION.txt and WORKSHOP_CHANGELOG.md (18 Oct entry), loading screens list Boss Battle.
+- Header line to expect: `[hellmatch] v0.2.0 ready: 32 levels, 502 sprite models, HUD on, prop template on`.
+- Music helper's analysis (music/analysis.md): trailer is 150 bpm D minor, -12.3 LUFS; gen01 Ferrous Pulse
+  (industrial, D minor 150), gen02 Chainsaw Vespers (thrash, A minor 164), gen03 Low Orbit of Hell (doom-metal
+  middle, G minor 140), gen04 Valkyrie Fragstorm (heroic, E minor 156), all ~195-207 s, -16.4 LUFS. Guitars are
+  synthesised (industrial/synth-metal feel, not a mic'd amp); Zach to judge by ear and drop any (remove from
+  music/tracks.json). Previews music/preview_gen0N.mp3 (20 s from the second chorus).
+- Open: CS2 cost of ~40 monsters + shots per arena (props, sounds) unknown; Boss Battle balance tuned on bots only;
+  monster kills can't be CS2 kills; `MUSIC_OPENER` "every" by default (Zach's call; "first" = once per map load).
+
+
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
    Frags during CS2 warmup are deliberately not sent (console warning says so).
@@ -295,6 +369,8 @@ only after waiting. Written and verified (sha1): maps/scripts/freedm.js, TESTING
 ## Ideas / not done
 - Per-player music on/off (csgo_music plays to everyone; players use snd_musicvolume).
 - Intermission music between rounds (d_fdmint).
+- Boss Battle: more boss variety (summoner swarms, double tripod), a Boss Battle-only music pool, monster kills on
+  the CS2 scoreboard (would need AddScore / a plugin).
 
 ## Known CS2 limits found
 - cl_draw_only_deathnotices can't be set from a script (CS2 refuses); only sv_disable_radar works server-side.
