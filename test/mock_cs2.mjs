@@ -55,9 +55,11 @@ function addEnt(e) { world.set(e.name, e); return e; }
 class PointTemplate extends Entity { ForceSpawn(pos) { stats.spawned++; const e = new Entity('tplspawn' + stats.spawned, 'prop_dynamic', pos); spawnedEnts.push(e); return [e]; } }
 // what each player's HUD panels show (panel -> class), so text lines can be read back
 const hudState = new Map();
+const loadingSlots = new Set();   // 'hudwipe': slots whose client drops HUD messages until they pick a team
 class CustomHudLayout extends Entity {
   SetHasClassForPlayer(slot, panel, cls, on) {
     stats.hudCalls++; const k = panel.replace(/\d+$/, "#"); (stats.hudBy ||= {})[k] = ((stats.hudBy[k]) || 0) + 1; if (!hudIds.has(panel)) throw new Error("unknown HUD panel " + panel);
+    if (OPTS.includes('hudwipe') && loadingSlots.has(slot)) return;   // client not ready: the change never arrives
     let m = hudState.get(slot); if (!m) hudState.set(slot, m = new Map());
     if (on) m.set(panel, cls); else if (m.get(panel) === cls) m.delete(panel);
   }
@@ -194,12 +196,12 @@ const Instance = {
 };
 const api = { Instance, CSInputs, CustomCameraMode, CSMoveType, CSRoundEndReason, CSDamageTypes, CSDamageFlags, CSPlayerPawn: Pawn, CSPlayerController: Controller, BaseModelEntity: Entity, PointTemplate, CustomHudLayout, Entity };
 
-let src = fs.readFileSync(path.join(root, 'out/addon/maps/scripts/freedm.js'), 'utf8');
+let src = fs.readFileSync(process.env.FDM_SCRIPT || path.join(root, 'out/addon/maps/scripts/freedm.js'), 'utf8');
 src = src.replace(/^import \{[^}]+\} from "cs_script\/point_script";/m, 'const { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, CSRoundEndReason, Entity } = __api;');
 if (OPTS.includes('elimonly')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 0, tdm: 0, elim: 100, lms: 0 }');
 if (OPTS.includes('hudcheck')) src = src.replace('const HUD_LINE_CHECK = false;', 'const HUD_LINE_CHECK = true;');
 if (OPTS.includes('nolinecache')) src = src.replace(/function hudSame\(slot, prefix, value\) \{/, 'function hudSame(slot, prefix, value) { return false;');
-src += '\nglobalThis.__dbg = () => ({ rm, views, parked, hudCheckMiss });\n';
+src += '\nglobalThis.__dbg = () => ({ rm, views, parked, hudCheckMiss, hudCache, phase });\n';
 const ctx = vm.createContext({ __api: api, console, Math, Date, JSON, Map, Set, Array, Object, String, Number, Error, Infinity, NaN });
 vm.runInContext(src, ctx, { filename: 'freedm.js' });
 
@@ -240,10 +242,28 @@ function specCheck() {
     }
   }
 }
+const join = { stranded: new Map(), worst: 0, over2: new Set(), hudBad: 0, hudChecks: 0, hudBadSlots: new Set() };
+function joinCheck() {
+  const d = ctx.__dbg();
+  const rm = d.rm;
+  for (const pe of rm.people.values()) {
+    const c = players.find((x) => x.slot === pe.slot && x.connected);
+    const standing = d.phase === 'running' && rm.state === 'running' && pe.status === 'none' && !pe.afk && (pe.csTeam === 2 || pe.csTeam === 3) && c && c.pawn && c.pawn.valid && c.pawn.alive;
+    const n = standing ? (join.stranded.get(pe.slot) || 0) + 1 : 0;
+    join.stranded.set(pe.slot, n);
+    if (n > join.worst) join.worst = n;
+    if (n > 2) join.over2.add(pe.name + '@' + Math.round(time));
+    if (c && !c.bot && !loadingSlots.has(pe.slot)) {
+      const want = d.hudCache.get(pe.slot), got = hudState.get(pe.slot) || new Map();
+      if (want) { join.hudChecks++; let bad = 0; for (const [panel, cls] of want) if ((got.get(panel) || null) !== (cls || null)) bad++; if (bad) { join.hudBad++; join.hudBadSlots.add(pe.slot); } }
+    }
+  }
+}
 while (time < SECONDS) {
   time += TICK;
   for (const [at, text] of Object.entries(CHATS)) if (Math.abs(time - +at) < TICK / 2 && players[0] && hooks.OnPlayerChat) hooks.OnPlayerChat({ player: players[0], text, team: 0 });
   if (OPTS.includes('spec') && Math.floor(time) !== Math.floor(time - TICK)) specCheck();
+  if (OPTS.includes('churn') && Math.floor(time) !== Math.floor(time - TICK)) joinCheck();
   // fake human input: move, strafe, turn, shoot, switch weapons
   for (const c of players) {
     const p = c.pawn;
@@ -307,13 +327,30 @@ function churn() {
     if (slot < 0) return;
     const c = new Controller(slot, 'late' + slot, 0, false, true);
     players.push(c); stats.churn.join++;
+    if (OPTS.includes('hudwipe')) loadingSlots.add(slot);
     hooks.OnPlayerActivate && hooks.OnPlayerActivate({ player: c });
-    later(2, () => { if (!c.connected) return; c.team = Math.random() < 0.5 ? 2 : 3; hooks.OnPlayerTeamChanged && hooks.OnPlayerTeamChanged({ player: c, newTeam: c.team }); later(1, () => c.respawn()); });
+    if (OPTS.includes('resetfirst')) later(2, () => {
+      if (!c.connected) return;
+      c.team = Math.random() < 0.5 ? 2 : 3; loadingSlots.delete(slot);
+      c.pawn = new Pawn(c);
+      hooks.OnPlayerReset && hooks.OnPlayerReset({ player: c.pawn });
+      hooks.OnPlayerTeamChanged && hooks.OnPlayerTeamChanged({ player: c.pawn, oldTeam: 0 });
+    });
+    else later(2, () => { if (!c.connected) return; c.team = Math.random() < 0.5 ? 2 : 3; loadingSlots.delete(slot); hooks.OnPlayerTeamChanged && hooks.OnPlayerTeamChanged({ player: c, newTeam: c.team }); later(1, () => c.respawn()); });
   } else if (r < 0.75) {
     const humans = live.filter((c) => !c.bot && c.slot !== 0);
     const c = humans[Math.floor(Math.random() * humans.length)] || live[Math.floor(Math.random() * live.length)];
     if (!c || c.slot === 0) return;
     stats.churn.swap++;
+    if (OPTS.includes('resetfirst')) {
+      const oldTeam = c.team;
+      if (c.pawn) { c.pawn.alive = false; c.pawn.valid = false; }
+      c.team = c.team === 2 ? 3 : 2;
+      c.pawn = new Pawn(c);
+      hooks.OnPlayerReset && hooks.OnPlayerReset({ player: c.pawn });
+      hooks.OnPlayerTeamChanged && hooks.OnPlayerTeamChanged({ player: c.pawn, oldTeam });
+      return;
+    }
     if (c.pawn) { c.pawn.alive = false; c.pawn.valid = false; }
     c.team = c.team === 2 ? 3 : 2;
     hooks.OnPlayerTeamChanged && hooks.OnPlayerTeamChanged({ player: c, newTeam: c.team });
@@ -357,4 +394,8 @@ if (OPTS.includes('perf') && perf.ms.length) {
   const n = perf.ms.length;
   console.log(`perf over ${n} server ticks: script ms avg ${avg(perf.ms).toFixed(2)} p50 ${q(perf.ms, .5).toFixed(2)} p95 ${q(perf.ms, .95).toFixed(2)} p99 ${q(perf.ms, .99).toFixed(2)} max ${Math.max(...perf.ms).toFixed(1)}`);
   console.log(`  entity moves per tick avg ${avg(perf.mv).toFixed(0)} p99 ${q(perf.mv, .99)} max ${Math.max(...perf.mv)}; HUD changes per tick avg ${avg(perf.hud).toFixed(0)} p99 ${q(perf.hud, .99)}; sounds/s ${(perf.snd / (n / 64)).toFixed(0)}; new props/s ${(perf.sp / (n / 64)).toFixed(1)}`);
+}
+if (OPTS.includes('churn')) {
+  console.log(`late joiners left standing in the lobby: longest ${join.worst} s, cases over 2 s: ${join.over2.size}`, [...join.over2].slice(0, 6).join(' '));
+  console.log(`screens not matching the script's HUD: ${join.hudBad} of ${join.hudChecks} checks (${join.hudBadSlots.size} players)`);
 }

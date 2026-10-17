@@ -9,6 +9,7 @@
 - !help shows the controls (!doom still works). While spectating it also shows how to switch player.
 - One-life rounds (team elimination, last man standing): once you're out, whether killed or gone to spectate, you wait for the next round instead of taking over a bot. Fixed: typing !back after being knocked out could leave you stuck.
 - Lighter on servers: the script uses about half the server time it did.
+- Fixed: players joining mid-round could be left standing in the lobby with a knife and parts of the on-screen text missing. They now go straight in.
 - No more money for kills (nothing can be bought anyway).
 - The lobby bhop course is gone: it was there for late joiners, who now take a bot's place instead of waiting.
 - The loading screens and description now make clear this is an unofficial fan project that uses Freedoom's content.

@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 17:35 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 18:20 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -252,6 +252,29 @@ Written and verified (sha1): maps/scripts/freedm.js only. No visible change.
   (instant); movement and shots are simulated on the server, so they arrive one round trip late (ping + up to one
   35 Hz Doom tic + interpolation). No lag compensation (shots use the server's current positions): lead targets by
   about your ping. A map script can't do client-side prediction.
+
+## Update 17 Oct 18:20 - joiners left in the lobby with a knife, half-drawn HUD text
+Zach's screenshot: skink52 joining T mid-round stood in the lobby with a CS2 knife, HUD showed "857" and "ING..."
+(i.e. "ROUND 8:57 LEFT" / "JOINING..." with the unchanged characters missing); ! commands did nothing; he got in
+only after waiting. Written and verified (sha1): maps/scripts/freedm.js, TESTING_HELLMATCH.md (item 15).
+- Cause 1 (stuck): point_script.d.ts says OnPlayerReset also fires on a team change, and CS2 can send it BEFORE
+  OnPlayerTeamChanged. Reset placed the joiner with the stale team (0) from the last scan; TeamChanged then saw
+  status != none and did leaveArena + unpark (pawn back to WALK, knife) - and nothing re-joined them until another
+  Reset. Fix (60_main.js): both events rescan first (current team); TeamChanged only removes someone whose place no
+  longer fits (left T/CT, or a team arena on the other side), re-tries spectators who only watched for lack of a
+  place, then placeLateJoiner; Reset uses placeLateJoiner; frame() runs placeLateJoiner every second for anyone
+  status 'none' on T/CT, not AFK, with a live pawn (safety net); !back from the lobby (status none) now joins too.
+- Cause 2 (missing letters): HUD class changes sent before the joiner's client was ready were lost, but the
+  per-panel cache thought they were drawn, so only characters that later changed appeared. Fix: hudReset (engine
+  ResetForPlayer + cache clear, full redraw) on OnPlayerActivate, OnPlayerTeamChanged and a lobby spawn (Reset with
+  status none). Respawns in an arena don't reset (the HUD survives those, or the root class would have vanished).
+- Mock: FDM_SCRIPT=<file> runs another build; `resetfirst` sends Reset before TeamChanged with the team already set
+  (joins and swaps); `hudwipe` drops HUD messages to a joining client until it picks a team; churn runs now report
+  people left standing in the lobby and screens not matching the script's HUD cache. Old build: stranded up to
+  193 s, 1457 of 5300 screen checks wrong; new build: 0 and 0 (also with elimonly, spec, hudcheck).
+- Music console line "[sndoperators] operator error: event fdm_music.dm21: CSosOperatorConvar" (sometimes, spams):
+  our events match Valve's documented csgo_music example exactly (type, volume, volume_convar "snd_musicvolume",
+  vsnd_files). Not changed yet; asked Zach when it shows (someone joining? track change?).
 
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).

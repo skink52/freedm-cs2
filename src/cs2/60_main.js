@@ -7,6 +7,7 @@ let lastTime = 0, acc = 0;
 let phase = "lobby";              // lobby | running | ending
 let startAt = 0;                  // game time when we may start the next Doom round
 let lastPeopleScan = 0;
+let nextPlaceCheck = 0;           // game time of the next check for people left standing in the lobby mid-round
 const pendingKills = [];          // respawn modes: { at, victim, killer }
 const elimKills = [];             // elimination modes: applied when the round ends
 const allowDamage = new Set();
@@ -406,6 +407,11 @@ function frame(dt) {
     return;
   }
   if (phase !== "running") return;
+  // safety net: anyone on T/CT standing in the lobby with a live pawn goes in (or watches) within a second
+  if (now >= nextPlaceCheck) {
+    nextPlaceCheck = now + 1;
+    for (const pe of rm.people.values()) if (pe.status === "none") placeLateJoiner(pe, true);
+  }
   // input for everyone in an arena (every server tick, so short presses are never missed)
   for (const pe of rm.people.values()) {
     if (pe.status === "playing" && pe.player && !pe.player.isBot) {
@@ -503,18 +509,38 @@ Instance.OnRoundEnd((ev) => guard("roundend", () => {
 }));
 Instance.OnBeginRoundRestart(() => guard("restart", () => cleanupRound(true)));
 Instance.OnPlayerDisconnect(({ playerSlot }) => guard("disconnect", () => dropPerson(playerSlot)));
-Instance.OnPlayerActivate(({ player }) => guard("activate", () => scanPeople(true)));
+// someone not in a game during a running round goes into one (or watches, if there's no place): their pawn is parked
+function placeLateJoiner(pe, needAlive) {
+  if (phase !== "running" || pe.status !== "none" || pe.afk || (pe.csTeam !== 2 && pe.csTeam !== 3)) return;
+  const pawn = pawnOf(pe.slot);
+  if (!pawn || (needAlive && !guard("alive", () => pawn.IsAlive()))) return;
+  if (rm.lateJoin(pe)) { park(pe.slot); if (pe.player && pe.player.mo) faceView(pe.slot, pe.player.mo.angle); }
+  else if (pe.status === "spectating") park(pe.slot);
+}
+
+// joining or switching team can clear the player's HUD on their screen: draw all of it again
+Instance.OnPlayerActivate(({ player }) => guard("activate", () => { scanPeople(true); const s = slotOfEntity(player); if (s !== undefined) hudReset(s); }));
+// CS2 sends OnPlayerReset (spawn) and OnPlayerTeamChanged for one team change in either order, so both use the
+// team the player has now and only undo a place that no longer fits
 Instance.OnPlayerTeamChanged(({ player }) => guard("team", () => {
   const slot = slotOfEntity(player);
   if (slot === undefined) return;
-  const pe = rm.person(slot);
-  if (pe && pe.status !== "none") { rm.leaveArena(pe, "team change"); unpark(slot); }
-  forgetKills(slot);
   scanPeople(true);
+  hudReset(slot);
+  forgetKills(slot);
+  const pe = rm.person(slot);
+  if (!pe) return;
+  const onSide = pe.csTeam === 2 || pe.csTeam === 3;
+  const wrongSide = pe.arena && pe.arena.teamsActive && pe.player && pe.player.team !== (pe.csTeam === 3 ? 1 : 0);
+  if (pe.status !== "none" && (!onSide || wrongSide)) { rm.leaveArena(pe, "team change"); unpark(slot); }
+  // watching only because there was no place with the old team: try again with the new one
+  if (pe.status === "spectating" && !pe.arena && !pe.afk && phase === "running" && rm.canJoin(pe)) pe.status = "none";
+  placeLateJoiner(pe, false);
 }));
 Instance.OnPlayerReset(({ player }) => guard("reset", () => {
   const slot = slotOfEntity(player);
   if (slot === undefined || phase !== "running") return;
+  scanPeople(true);
   const pe = rm.person(slot);
   if (!pe) return;
   if (pe.status === "playing" && pe.player) {
@@ -522,9 +548,9 @@ Instance.OnPlayerReset(({ player }) => guard("reset", () => {
     const k = pendingKills.findIndex((x) => x.victim === slot && x.done);
     if (k >= 0) { pendingKills.splice(k, 1); respawnFailures = 0; }
     pe.player.respawnGate = true; pe.player.respawnNow = true;
-  } else if (pe.status === "none" && phase === "running") {
-    if (rm.lateJoin(pe)) { park(slot); if (pe.player && pe.player.mo) faceView(slot, pe.player.mo.angle); }
-    else if (pe.status === "spectating") park(slot);
+  } else if (pe.status === "none") {
+    hudReset(slot);
+    placeLateJoiner(pe, false);
   }
 }));
 Instance.OnPlayerKill(({ player }) => guard("cskilled", () => {
@@ -564,7 +590,7 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
       if (pe.status === "spectating" && phase === "running" && rm.canJoin(pe)) {
         pe.status = "none";
         if (rm.lateJoin(pe) && pe.player && pe.player.mo) faceView(slot, pe.player.mo.angle);
-      }
+      } else if (pe.status === "none") placeLateJoiner(pe, true);   // standing in the lobby (back from AFK)
     }
   } else if (t === "!hud scores" || t === "!hud scoreboard") {
     // per player: hide the Doom HUD while the scoreboard is open
