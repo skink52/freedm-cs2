@@ -88,12 +88,13 @@ class Arena {
   }
 
   // nearest position (within maxR, same sector) where a player fits: no walls, no solid things or players
-  fitSpot(x, y, maxR = 48, avoid, radius = 16, height = 56) {
+  fitSpot(x, y, maxR = 48, avoid, radius = 16, height = 56, info = null) {
     return this.run(() => {
       const sec = this.level.sectorAt(x, y);
       const fits = (px, py) => {
         if (avoid && avoid.some((t) => Math.abs(t.x - px) < 34 && Math.abs(t.y - py) < 34)) return false;
-        const probe = { x: px, y: py, radius, height, flags: MF_SOLID | MF_SHOOTABLE | MF_PICKUP, z: 0 };
+        // info: the monster this spot is for (monster-blocking lines then count as walls)
+        const probe = { x: px, y: py, radius, height, flags: MF_SOLID | MF_SHOOTABLE | MF_PICKUP, z: 0, info, player: null };
         return checkPositionProbe(probe, px, py);
       };
       if (fits(x, y)) return { x, y };
@@ -117,7 +118,8 @@ class Arena {
     return x >= bb[0] - 8 && y >= bb[1] - 8 && x <= bb[2] + 8 && y <= bb[3] + 8;
   }
 
-  // safety net: anyone who ends up outside the level goes back to a spawn spot
+  // safety net: anyone who ends up outside the level goes back to a spawn spot; a monster out there just goes away
+  // (the director brings in another one)
   rescueOutside() {
     for (const p of this.players.values()) {
       if (!p.mo || p.mo.removed || p.playerstate !== 'live' || p.spectating) continue;
@@ -126,6 +128,14 @@ class Arena {
       this.run(() => { teleportMove(p.mo, s.x, s.y); p.mo.z = p.mo.floorz; p.mo.momx = p.mo.momy = p.mo.momz = 0; p.mo.angle = s.angle; });
       this.events.push({ type: 'teleport', player: p, angle: s.angle });
     }
+    if (!this.monsterCount) return;
+    this.run(() => {
+      for (const m of Array.from(this.mobjs)) {
+        if (m.info.kind !== 'monster' || m.health <= 0 || this.inside(m.x, m.y)) continue;
+        if (this.director) this.director.onLost(m);
+        removeMobj(m);
+      }
+    });
   }
 
   // ---------------------------------------------------------------- players
@@ -348,9 +358,12 @@ function walkableLine(x1, y1, x2, y2) {
   });
 }
 
+// a thing fits at (x, y) when nothing blocks it, it fits under the ceiling, and no step taller than MAXSTEP is within
+// its radius (a spot right against a tall ledge passes the first two checks, but a thing placed there would be inside
+// the ledge: it can't move at all, and a monster would stand at ledge height in the low room)
 function checkPositionProbe(probe, x, y) {
   probe.sector = G.level.sectorAt(x, y);
-  return checkPosition(probe, x, y) && TM.ceilingz - TM.floorz >= probe.height;
+  return checkPosition(probe, x, y) && TM.ceilingz - TM.floorz >= probe.height && TM.floorz - probe.sector.floorheight <= MAXSTEP;
 }
 
 // sound and message plumbing

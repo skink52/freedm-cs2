@@ -4,6 +4,7 @@
 - New mode: Boss Battle (co-op). Everyone in the arena fights 4 waves of monsters and then a boss, with 3 lives each. The frag box counts your kills; the top right shows the wave and what's left.
 - Monsters in deathmatch: an arena now has a 15% chance of creatures loose in the level. Killing one is no frag and dying to one costs none.
 - Music: every round opens with the Hellmatch theme, and four new fast-paced tracks join the rotation.
+- Boss Battle picks the larger levels; monsters that get stuck or snipe from unreachable ledges teleport back to the fight; no fresh lives from leaving and rejoining.
 
 ## Update - 17 Oct: FreeDM Arena is now Hellmatch
 - New name: Hellmatch. The map is now mg_hellmatch, with a new title, map icon and loading screens. Servers that load it by Workshop ID don't need to change anything.

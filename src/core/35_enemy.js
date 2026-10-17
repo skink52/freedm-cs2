@@ -86,7 +86,10 @@ function checkMissileRange(actor) {
 }
 
 // ---------------------------------------------------------------- movement
-const MONSTER_DOORS = new Set([1, 32, 33, 34, 117]);
+// doors a monster can open (Doom: only type 1 and a try at the locked ones).
+// Keys don't exist here (deathmatch strips them), and the bots' routes and the spawn spots treat every door as open,
+// so monsters open the locked kinds too, else a monster behind one stalls a wave.
+const MONSTER_DOORS = new Set([1, 26, 27, 28, 31, 32, 33, 34, 117, 118]);
 
 function monsterMove(actor) {
   if (actor.movedir === DI_NODIR || actor.movedir === undefined) return false;
@@ -276,12 +279,24 @@ function skullAttack(actor) {
   actor.momz = (dest.z + dest.height / 2 - actor.z) / dist;
 }
 
+// true when nothing solid lies on the straight line between the two points (one-sided walls, blocking lines, closed
+// doors); used where Doom placed things blindly and could put them through a wall
+function clearLine(x1, y1, x2, y2, height) {
+  return pathTraverse(x1, y1, x2, y2, PT_ADDLINES, (ic) => {
+    const li = ic.line;
+    if (!li.backsector || !(li.flags & ML_TWOSIDED) || (li.flags & ML_BLOCKING)) return false;
+    return lineOpening(li).range >= (height || 16);
+  });
+}
+
 function painShootSkull(actor, angle) {
   let count = 0;
   for (const m of G.mobjs) if (m.type === MT.LOSTSOUL && m.health > 0) count++;
   if (count > (G.cfg.maxLostSouls || 20)) return;
   const prestep = 4 + 3 * (actor.info.radius + MOBJINFO[MT.LOSTSOUL].radius) / 2;
   const x = actor.x + prestep * Math.cos(angle * DEG), y = actor.y + prestep * Math.sin(angle * DEG);
+  // Doom spawns the skull blindly, which can put it beyond a wall into the void (it then flies around outside the level)
+  if (!clearLine(actor.x, actor.y, x, y, 32) || (G.inside && !G.inside(x, y))) return;
   const skull = spawnMobj(x, y, actor.z + 8, MT.LOSTSOUL);
   skull.spawnedBy = 'pain';
   if (!tryMove(skull, skull.x, skull.y)) { damageMobj(skull, actor, actor, 10000); return; }
@@ -384,6 +399,7 @@ Object.assign(MOBJ_ACTIONS, {
         corpse.flags = info.flags;
         corpse.health = info.spawnhealth;
         corpse.target = null;
+        corpse.boss = false;   // a raised boss is just a big monster
         G.onMonsterRaised(corpse);
         return;
       }

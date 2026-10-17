@@ -77,6 +77,7 @@ function PIT_CheckLine(ld) {
   if (!ld.backsector) { TM.blockline = ld; return false; }
   if (!(TM.thing.flags & MF_MISSILE)) {
     if (ld.flags & ML_BLOCKING) { TM.blockline = ld; return false; }
+    if (!TM.thing.player && (ld.flags & ML_BLOCKMONSTERS) && TM.thing.info && TM.thing.info.kind === 'monster') { TM.blockline = ld; return false; }
   }
   const op = lineOpening(ld);
   if (op.top < TM.ceilingz) { TM.ceilingz = op.top; TM.ceilingline = ld; }
@@ -562,6 +563,8 @@ function teleportMove(thing, x, y) {
       if (Math.abs(th.x - x) >= bd || Math.abs(th.y - y) >= bd) return true;
       stomp.push(th); return true;
     });
+  // only players telefrag; a monster whose destination is occupied doesn't go through (Doom's PIT_StompThing)
+  if (!thing.player && stomp.length) return false;
   G.damageCtx = 'telefrag';
   for (const th of stomp) damageMobj(th, thing, thing, 10000);
   G.damageCtx = null;

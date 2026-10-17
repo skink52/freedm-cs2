@@ -237,7 +237,9 @@ function damageMobj(target, inflictor, source, damage) {
   const player = target.player;
   if (player && player.spectating) return;
   if (player && G.isProtected(player) && damage < 10000) return;
-  if (sameTeamNoFF(source, target)) return;
+  // teammates never hurt each other, except a telefrag: two things sharing one spot can never move again, so the one
+  // arriving always wins (Doom's co-op rule)
+  if (damage < 10000 && sameTeamNoFF(source, target)) return;
   if (target.flags & MF_SKULLFLY) target.momx = target.momy = target.momz = 0;
   if (inflictor && !(target.flags & MF_NOCLIP) &&
       (!source || !source.player || source.player.readyweapon !== WP_CHAINSAW)) {

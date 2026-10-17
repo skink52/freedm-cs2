@@ -55,7 +55,7 @@ class MonsterDirector {
     return n;
   }
 
-  players() { return Array.from(this.a.players.values()).filter((p) => !p.spectating && p.mo && !p.mo.removed); }
+  players() { return Array.from(this.a.players.values()).filter((p) => !p.spectating && p.mo && !p.mo.removed && p.playerstate === 'live'); }
 
   levelArea() { const bb = this.a.level.data.bb; return bb ? (bb[2] - bb[0]) * (bb[3] - bb[1]) : 1e6; }
 
@@ -82,7 +82,7 @@ class MonsterDirector {
 
   // the boss (and an escort) for this arena: whoever actually fits in the level
   planBoss(n) {
-    const m = Math.max(0.5, Math.min(2.5, 0.4 + 0.12 * Math.min(16, n)));   // health scale by player count
+    const m = Math.max(0.5, Math.min(2.2, 0.35 + 0.1 * Math.min(16, n)));   // health scale by player count
     const fits = (key) => !!this.findSpot(MOBJINFO[MT[key]], 0, true);
     const options = [];
     if (fits('CYBERDEMON')) options.push({ key: 'cyber', weight: 5 });
@@ -93,7 +93,7 @@ class MonsterDirector {
     if (pick === 'cyber') bosses.push({ type: 'CYBERDEMON', health: Math.round(4000 * m) });
     else if (pick === 'spider') bosses.push({ type: 'MASTERMIND', health: Math.round(3000 * m) });
     else { const k = 1 + Math.ceil(n / 4); for (let i = 0; i < k; i++) bosses.push({ type: 'BARON', health: Math.round(1000 * (1 + m / 2)) }); }
-    const escort = this.planWave(2, n).slice(0, 3 + Math.floor(n / 2));
+    const escort = this.planWave(2, n).slice(0, 2 + Math.floor(n / 3));
     return { bosses, escort, name: pick === 'lords' ? 'PAIN LORDS' : MOBJINFO[MT[bosses[0].type]].name.toUpperCase() };
   }
 
@@ -139,20 +139,26 @@ class MonsterDirector {
   // a spot where this monster fits, as far from players as possible and preferably out of their sight
   findSpot(info, minDist, quiet, close) {
     const players = this.players();
+    const L = this.a.level;
     let cands = this.candidateSpots().map((s) => {
-      let near = 1e9;
-      for (const p of players) near = Math.min(near, Math.hypot(p.mo.x - s.x, p.mo.y - s.y));
-      return { s, near };
+      let near = 1e9, dz = 0;
+      for (const p of players) { const d = Math.hypot(p.mo.x - s.x, p.mo.y - s.y); if (d < near) { near = d; dz = Math.abs(L.sectorAt(s.x, s.y).floorheight - p.mo.z); } }
+      return { s, near, dz };
     });
-    // close: the nearest spots to the players that still keep minDist (stragglers are brought to the fight)
-    if (close) { const ok = cands.filter((c) => c.near >= (minDist || 0)); cands = (ok.length ? ok : cands).sort((a, b) => a.near - b.near); }
-    else cands.sort((a, b) => b.near - a.near);
+    // close: the nearest spots to the players that still keep minDist, on the players' own floor level if there are
+    // any (stragglers are brought to the fight, not onto the next ledge)
+    if (close) {
+      let ok = cands.filter((c) => c.near >= (minDist || 0));
+      if (!ok.length) ok = cands;
+      const level = ok.filter((c) => c.dz <= 2 * MAXSTEP);
+      cands = (level.length ? level : ok).sort((a, b) => a.near - b.near);
+    } else cands.sort((a, b) => b.near - a.near);
     const tries = cands.slice(0, 24);
     let best = null;
     for (const c of tries) {
       if (c.near < (minDist || 0) && best) break;
       // step aside from whoever already stands there (a wave arrives at the same few far-away spots)
-      const f = this.a.fitSpot(c.s.x, c.s.y, 128, null, info.radius, info.height);
+      const f = this.a.fitSpot(c.s.x, c.s.y, 128, null, info.radius, info.height, info);
       if (!f) continue;
       let visible = false;
       if (!quiet && players.length) {
@@ -172,8 +178,8 @@ class MonsterDirector {
     if (!spot) return null;
     const a = this.a;
     const mo = spawnMobj(spot.x, spot.y, ONFLOORZ, MT[type]);
-    // the spot was checked with a probe; check again with the real thing (a step or a ledge inside its radius is fine)
-    if (!checkPosition(mo, spot.x, spot.y) || TM.ceilingz - TM.floorz < mo.height) { removeMobj(mo); return null; }
+    // the spot was checked with a probe; check again with the real thing (a step up to MAXSTEP inside its radius is fine)
+    if (!checkPosition(mo, spot.x, spot.y) || TM.ceilingz - TM.floorz < mo.height || TM.floorz - mo.sector.floorheight > MAXSTEP) { removeMobj(mo); return null; }
     mo.floorz = TM.floorz; mo.ceilingz = TM.ceilingz; mo.z = TM.floorz; mo.pz = mo.z;
     mo.angle = mo.pangle = Math.floor(Math.random() * 8) * 45;
     if (opts && opts.health) { mo.health = opts.health; mo.maxHealth = opts.health; }
@@ -206,7 +212,7 @@ class MonsterDirector {
     const a = this.a;
     if (!this.started) { this.started = true; this.nextSpawn = a.leveltime; }
     if (a.leveltime < this.nextSpawn) return;
-    const alive = this.alive();
+    const alive = this.aliveNow = this.alive();
     const want = this.cfg.roamCount;
     if (alive >= want) { this.nextSpawn = a.leveltime + TICRATE; return; }
     const entries = Object.entries(MONSTER_ROSTER).filter(([, r]) => r.roam > 0).map(([k, r]) => [k, r.roam]);
@@ -222,14 +228,21 @@ class MonsterDirector {
     const n = Math.max(1, this.players().length);
     if (!this.started) {
       this.started = true;
-      this.nextWave = a.leveltime + a.countdown + TICRATE;   // the first wave comes right after the countdown
+      // the first wave comes right after the countdown; arenas are offset by a second each so four waves never arrive
+      // on the same server tick (props, sounds and HUD changes all burst when a wave lands)
+      this.nextWave = a.leveltime + a.countdown + TICRATE + (a.index % 4) * TICRATE;
       return;
     }
     if (this.nextWave) {
       if (a.leveltime >= this.nextWave) this.startWave(n);
       return;
     }
-    const alive = this.alive();
+    const alive = this.aliveNow = this.alive();
+    // the boss is down: the round is won even while its escort is still trickling in
+    if (this.wave >= this.cfg.waves && !this.won && this.bossCount > 0 && this.bossKilled >= this.bossCount) {
+      this.won = true; this.queue.length = 0;
+      this.events.push({ type: 'bossDown' });
+    }
     if (this.queue.length) {
       if (a.leveltime < this.nextSpawn) return;
       // trickle the wave in, up to the alive cap (the first few arrive quickly, the rest more slowly)
@@ -245,12 +258,13 @@ class MonsterDirector {
     if ((a.leveltime % (5 * TICRATE)) === 0) this.unstick();
     // the whole wave is out
     if (this.wave >= this.cfg.waves) {
-      if (!this.won && (this.bossCount === 0 || this.bossKilled >= this.bossCount) && (this.bossCount > 0 || alive === 0)) {
+      // no boss could be placed (nowhere it fits): the wave counts as won once its escort is dead
+      if (!this.won && this.bossCount === 0 && alive === 0) {
         this.won = true;
-        this.events.push({ type: 'bossDown' });
+        this.events.push({ type: 'bossDown', noBoss: true });
       }
     } else if (alive === 0) {
-      this.nextWave = a.leveltime + this.cfg.waveGap;
+      this.nextWave = a.leveltime + this.cfg.waveGap + (a.index % 4) * Math.floor(TICRATE / 2);
       this.events.push({ type: 'waveCleared', wave: this.wave, next: this.wave + 1 });
     }
   }
@@ -273,26 +287,49 @@ class MonsterDirector {
     this.waveStart = this.a.leveltime; this.lastKill = 0;
   }
 
-  // a monster that has not moved for 25 s while its players are far away is somewhere it can't get out of (a pit, a
-  // closed-off corner): it comes back through a teleporter near the players
+  // every 5 s: monsters that make no headway are brought back into the fight. Doom's chase is greedy (no route
+  // finding), so a monster whose target is behind a wall or on another floor can jitter in place for minutes, and one
+  // that lost sight of everyone goes back to sleep. In a horde round they always know where you are:
+  //  - asleep (spawn state) for 5 s with players alive: it gets the nearest player as target and wakes up
+  //  - no closer to the nearest player (by 64 units) for 20 s and no line of sight to them on the same floor: it comes
+  //    back through a teleporter near the players (close spawn)
   unstick() {
     const a = this.a;
     const players = this.players();
+    if (!players.length) return;
     for (const m of Array.from(a.mobjs)) {
       if (m.info.kind !== 'monster' || m.health <= 0) continue;
-      const moved = m.lastPos ? Math.hypot(m.x - m.lastPos.x, m.y - m.lastPos.y) : 1e9;
-      if (moved > 48) { m.lastPos = { x: m.x, y: m.y }; m.stillSince = a.leveltime; continue; }
-      if (!m.lastPos) { m.lastPos = { x: m.x, y: m.y }; m.stillSince = a.leveltime; continue; }
-      let near = 1e9;
-      for (const p of players) near = Math.min(near, Math.hypot(p.mo.x - m.x, p.mo.y - m.y));
-      if (near < 400 || a.leveltime - m.stillSince < 25 * TICRATE) continue;
+      let nearest = null, near = 1e9;
+      for (const p of players) { const d = Math.hypot(p.mo.x - m.x, p.mo.y - m.y); if (d < near) { near = d; nearest = p; } }
+      if (STATES[m.state].action === 'A_Look' && m.info.seestate !== S_NULL) {
+        if (m.idleSince === undefined) m.idleSince = a.leveltime;
+        if (a.leveltime - m.idleSince >= 5 * TICRATE) {
+          m.target = nearest.mo; m.threshold = BASETHRESHOLD; m.idleSince = undefined;
+          a.run(() => setMobjState(m, m.info.seestate));
+        }
+        continue;
+      }
+      m.idleSince = undefined;
+      // progress = getting closer to the nearest player (monsters switch targets often, so the target itself is no yardstick)
+      if (m.bestNear === undefined || near < m.bestNear - 64) { m.bestNear = near; m.progressAt = a.leveltime; continue; }
+      if (a.leveltime - (m.progressAt || 0) < 20 * TICRATE) continue;
+      // close by on the same floor, or in sight on the same floor: fighting, not stuck. A monster sniping from a ledge the
+      // players can't reach (or can't aim up to) would stall the wave, so a big height difference counts as stuck too
+      const sameFloor = (m.flags & MF_FLOAT) || Math.abs(nearest.mo.z - m.z) <= 2 * MAXSTEP;   // flyers are never 'on another floor'
+      if (sameFloor && (near < 160 || a.run(() => checkSight(m, nearest.mo)))) { m.progressAt = a.leveltime; m.bestNear = near; continue; }
       const re = this.spawn(m.info.key, { health: m.health, boss: m.boss, minDist: 350, close: true });
       if (re) { if (m.boss) this.bossCount--; this.spawned--; removeMobj(m); }
-      else m.stillSince = a.leveltime;
+      else m.progressAt = a.leveltime;
     }
   }
 
-  left() { return this.queue.length + this.alive(); }
+  left() { return this.queue.length + (this.aliveNow !== undefined ? this.aliveNow : this.alive()); }   // aliveNow: counted once per tic
+
+  // a monster that is gone without being killed (outside the level): the counters forget it
+  onLost(mo) {
+    if (mo.boss) this.bossCount--;
+    this.spawned--;
+  }
 
   onKilled(mo, source) {
     this.killed++;

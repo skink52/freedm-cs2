@@ -22,6 +22,7 @@ const CONFIG = {
   FRIENDLY_FIRE: false,
   FREELOOK_AIM: true,            // aim up/down with the mouse when autoaim finds nothing
   MAP_BLACKLIST: [],             // e.g. ["m24"] to never pick MAP24
+  BOSS_MAP_BLACKLIST: [],        // levels never used for Boss Battle (it picks from the larger half of the levels anyway)
 
   // ---- kill credit
   REAL_KILLS: true,              // every Doom frag is also a real CS2 kill (killfeed, scoreboard, rank plugins)

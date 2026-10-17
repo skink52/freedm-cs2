@@ -88,13 +88,26 @@ class RoundManager {
     return 'ffa';
   }
 
-  pickMap(players, used) {
+  // large: Boss Battle wants room for a horde and a boss, so it picks from the bigger half of the levels (by area),
+  // the biggest quarter twice as often
+  pickMap(players, used, large) {
     const want = Math.max(4, players) * this.cfg.areaPerPlayer;
     const recent = this.mapHistory.slice(-this.cfg.mapRepeatGap);
-    let cands = this.levels.filter((L) => !used.has(L.id) && !recent.includes(L.id) && !(this.cfg.mapBlacklist || []).includes(L.id));
-    if (!cands.length) cands = this.levels.filter((L) => !used.has(L.id));
-    if (!cands.length) cands = this.levels.slice();
     const area = (L) => (L.bb[2] - L.bb[0]) * (L.bb[3] - L.bb[1]);
+    const byArea = this.levels.slice().sort((a, b) => area(b) - area(a));
+    const pool = large && byArea.length >= 4 ? byArea.slice(0, Math.ceil(byArea.length / 2)) : this.levels;
+    const blacklist = (this.cfg.mapBlacklist || []).concat(large ? this.cfg.bossMapBlacklist || [] : []);
+    let cands = pool.filter((L) => !used.has(L.id) && !recent.includes(L.id) && !blacklist.includes(L.id));
+    if (!cands.length) cands = pool.filter((L) => !used.has(L.id) && !blacklist.includes(L.id));
+    if (!cands.length) cands = pool.filter((L) => !used.has(L.id));
+    if (!cands.length) cands = this.levels.slice();
+    if (large) {
+      const quarter = new Set(byArea.slice(0, Math.ceil(byArea.length / 4)).map((L) => L.id));
+      const weights = cands.map((L) => [L, quarter.has(L.id) ? 2 : 1]);
+      let r = Math.random() * weights.reduce((t, [, w]) => t + w, 0);
+      for (const [L, w] of weights) { r -= w; if (r <= 0) return L; }
+      return cands[cands.length - 1];
+    }
     cands.sort((a, b) => Math.abs(Math.log(area(a) / want)) - Math.abs(Math.log(area(b) / want)));
     const top = cands.slice(0, Math.min(5, cands.length));
     return top[Math.floor(Math.random() * top.length)];
@@ -191,10 +204,10 @@ class RoundManager {
       const tCount = grp.filter((p) => p.csTeam === 2).length, ctCount = grp.length - tCount;
       if (MODES[mk].teams && (grp.length < MODES[mk].minPlayers || !tCount || !ctCount)) mk = MODES[mk].respawn ? 'ffa' : 'lms';
       if (grp.length < 2 && mk !== 'boss') mk = 'ffa';
-      const L = this.pickMap(grp.length, used);
+      const coop = !!MODES[mk].coop;
+      const L = this.pickMap(grp.length, used, coop);
       used.add(L.id);
       this.mapHistory.push(L.id); if (this.mapHistory.length > 40) this.mapHistory.shift();
-      const coop = !!MODES[mk].coop;
       // Boss Battle always starts everyone with a real weapon; the other modes roll for one and, separately, for monsters
       const loadout = coop ? (this.pickLoadout(true) || 'shotgun') : this.pickLoadout();
       const monsters = !coop && Math.random() < (this.cfg.monsterChance || 0);
@@ -273,7 +286,8 @@ class RoundManager {
         a.events.push({ type: 'eliminated', victim: p, why });
       }
       // one life per round: whoever leaves a one-life arena can't take a bot's place until the next round
-      if (a.mode && !a.mode.respawn) pe.outRound = this.roundNumber;
+      // one life per round; Boss Battle: one entry per round (leaving and rejoining would hand out fresh lives)
+      if (a.mode && (!a.mode.respawn || a.coop)) pe.outRound = this.roundNumber;
       a.removePlayer(pe.slot);
       this.events.push({ type: 'leave', person: pe, arena: a, why });
     }
@@ -282,7 +296,7 @@ class RoundManager {
 
   // arenas someone can walk into mid-round: respawn rounds with room (team arenas only for T/CT players)
   joinCandidates(pe) {
-    return this.arenas.filter((a) => !a.finished && a.mode.respawn && a.players.size < this.cfg.arenaMax &&
+    return this.arenas.filter((a) => !a.finished && a.mode.respawn && a.players.size < this.cfg.arenaMax && !(a.coop && pe.outRound === this.roundNumber) &&
       (!a.teamsActive || pe.csTeam === 2 || pe.csTeam === 3));
   }
 
@@ -316,7 +330,7 @@ class RoundManager {
     let best = null, bestScore = Infinity;
     for (const a of this.arenas) {
       if (a.finished || a.countdown > 0) continue;
-      if (!a.mode.respawn && out) continue;                          // already had their one life this round
+      if ((!a.mode.respawn || a.coop) && out) continue;               // already had their one life / entry this round
       for (const p of a.players.values()) {
         const pb = p.person;
         if (!pb || !pb.bot || p.spectating) continue;

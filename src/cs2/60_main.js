@@ -23,7 +23,7 @@ function buildCfg() {
   c.arenaMax = CONFIG.ARENA_MAX; c.arenaMin = CONFIG.ARENA_MIN; c.maxArenas = CONFIG.MAX_ARENAS;
   c.minPlayersToStart = CONFIG.MIN_PLAYERS;
   c.friendlyFire = CONFIG.FRIENDLY_FIRE;
-  c.mapBlacklist = CONFIG.MAP_BLACKLIST.slice();
+  c.mapBlacklist = CONFIG.MAP_BLACKLIST.slice(); c.bossMapBlacklist = (CONFIG.BOSS_MAP_BLACKLIST || []).slice();
   c.afkWarnTics = CONFIG.AFK_WARN * TICRATE; c.afkKickTics = CONFIG.AFK_KICK * TICRATE;
   c.elimTimeLimitTics = CONFIG.ELIM_SECONDS * TICRATE;
   c.finishGraceTics = CONFIG.FINISH_GRACE * TICRATE;
@@ -182,7 +182,7 @@ function csKill(victimSlot, killerSlot) {
   }));
   allowDamage.delete(victimSlot);
   const died = !live(vp) || !vp.IsAlive();
-  const vc = controllerOf(victimSlot), kc = killerSlot !== victimSlot ? controllerOf(killerSlot) : undefined;
+  const vc = controllerOf(victimSlot), kc = killerSlot != null && killerSlot !== victimSlot ? controllerOf(killerSlot) : undefined;
   if ((vc && !vc.IsBot()) || (kc && !kc.IsBot())) guard("killlog", () => log(`CS2 kill: ${kc ? kc.GetPlayerName() + " (team " + kc.GetTeamNumber() + ", score " + kc.GetScore() + ")" : "self/world"} -> ${vc ? vc.GetPlayerName() + " (team " + vc.GetTeamNumber() + ")" : victimSlot}${died ? "" : " BLOCKED"}`));
   if (!died) warnOnce("killblocked", "a scripted CS2 kill was blocked (plugin or damage settings?) - frags still count in the arena");
   return died;
@@ -196,7 +196,7 @@ function onDoomKill(arena, e) {
   if (!CONFIG.REAL_KILLS || realKillsBroken || Instance.IsWarmupPeriod()) {
     if (CONFIG.ADD_SCORE) {
       const c = controllerOf(k ? k.slot : v.slot);
-      if (c) guard("addscore", () => c.AddScore(k ? 1 : -1));
+      if (c && e.kind !== "monster") guard("addscore", () => c.AddScore(k ? 1 : -1));
     }
     return;
   }
@@ -253,7 +253,7 @@ function handleArenaEvents(a) {
         centerMsgs.set(a, { text: "BOSS INCOMING", until: Instance.GetGameTime() + 4 });
         sayAll(`${a.mapTitle}: the boss is here - ${e.name.toLowerCase()}`);
         break;
-      case "bossDown": centerMsgs.set(a, { text: "BOSS DOWN!", until: Instance.GetGameTime() + 3 }); break;
+      case "bossDown": centerMsgs.set(a, { text: e.noBoss ? "WAVE CLEARED" : "BOSS DOWN!", until: Instance.GetGameTime() + 3 }); break;
       case "monsterKill":
         if (e.boss && e.killer) { e.killer.message = `YOU KILLED THE ${String(e.name).toUpperCase()}`; e.killer.messageTime = a.leveltime; }
         break;

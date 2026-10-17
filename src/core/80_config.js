@@ -6,6 +6,7 @@ const DEFAULT_CFG = {
   modeWeights: { ffa: 30, tdm: 30, boss: 15, elim: 15, lms: 10 },
   monsterChance: 0.15,            // chance, per arena, that a deathmatch round has monsters loose in the level
   monsters: { waves: 5, lives: 3, maxAlive: 36, roamMax: 8 },
+  bossMapBlacklist: [],           // levels never used for Boss Battle (it already picks from the bigger half)
   bossTimeLimitTics: 480 * TICRATE,
   ffaFrags: 20, tdmFrags: 32,
   areaPerPlayer: 420000, mapRepeatGap: 8, mapBlacklist: [],

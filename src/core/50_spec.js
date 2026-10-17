@@ -369,7 +369,14 @@ function teleport(line, side, thing) {
     for (const m of G.mobjs) {
       if (m.type !== MT.TELEPORTMAN || m.sector !== sec) continue;
       const oldx = thing.x, oldy = thing.y, oldz = thing.z;
-      if (!teleportMove(thing, m.x, m.y)) return false;
+      let dx = m.x, dy = m.y;
+      // a wide monster (demon, mancubus...) can land overlapping a wall when the destination sits close to one, and is
+      // then stuck for good: step it to the nearest clear spot (players keep Doom's exact landing)
+      if (!thing.player && thing.info.kind === 'monster' && G.fitSpot) {
+        const f = G.fitSpot(m.x, m.y, 96, null, thing.radius, thing.height, thing.info);
+        if (f) { dx = f.x; dy = f.y; }
+      }
+      if (!teleportMove(thing, dx, dy)) return false;
       thing.z = thing.floorz;
       if (thing.player) thing.player.viewz = thing.z + thing.player.viewheight;
       const fog = spawnMobj(oldx, oldy, oldz, MT.TFOG);
