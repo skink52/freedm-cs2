@@ -48,11 +48,12 @@ def sounds():
         convert_wav(src, os.path.join(d, 'ds%s.wav' % s))
         found.append(s)
         ev += ['\t"fdm.%s" =' % s, '\t{', '\t\tbase = "fdm.base"', '\t\tvsnd_files_track_01 = "sounds/fdm/ds%s.vsnd"' % s, '\t}']
-    # music (tools/music.py): csgo_music plays the same for everyone, at each player's own music volume
+    # music (tools/music.py): csgo_music plays the same for everyone, at each player's own music volume (snd_musicvolume
+    # applies by itself; a volume_convar line makes CS2 look for snd_musicvolume_rush/_casual/... and spam the console)
     mj = os.path.join(OUT, '_gen/music.json')
     for t in (json.load(open(mj)) if os.path.exists(mj) else []):
         ev += ['\t"fdm_music.%s" =' % t['id'], '\t{', '\t\ttype = "csgo_music"', '\t\tvolume = %.2f' % MUSIC_VOLUME,
-               '\t\tvolume_convar = "snd_musicvolume"', '\t\tvsnd_files = "sounds/fdm/music/%s.vsnd"' % t['id'], '\t}']
+               '\t\tvsnd_files = "sounds/fdm/music/%s.vsnd"' % t['id'], '\t}']
     ev.append('}')
     os.makedirs(os.path.join(OUT, 'soundevents'), exist_ok=True)
     open(os.path.join(OUT, 'soundevents/soundevents_addon.vsndevts'), 'w', newline='\n').write('\n'.join(ev) + '\n')

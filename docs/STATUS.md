@@ -279,6 +279,10 @@ only after waiting. Written and verified (sha1): maps/scripts/freedm.js, TESTING
   stack looks up old per-mode CS:GO music volume convars that CS2 doesn't have. Harmless (music plays, follows
   snd_musicvolume); left as is. The only way to silence it is a non-music sound type, which would ignore the music
   volume slider (a shared point_soundevent can't be turned down per player).
+  20:58 Zach: admins use the in-game console, so fix it. buyi.dev/2024/cs2-snd notes csgo_music follows snd_musicvolume
+  by default and that a hand-written volume_convar "didn't work"; the failing names are volume_convar + _<mode>.
+  Removed volume_convar from the music events (tools/extras.py); soundevents_addon.vsndevts re-sent. NOT YET TESTED:
+  check the spam is gone and the music volume slider still turns the music down.
 
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
