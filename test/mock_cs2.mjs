@@ -53,10 +53,25 @@ function check(p) {
 const world = new Map();
 function addEnt(e) { world.set(e.name, e); return e; }
 class PointTemplate extends Entity { ForceSpawn(pos) { stats.spawned++; const e = new Entity('tplspawn' + stats.spawned, 'prop_dynamic', pos); spawnedEnts.push(e); return [e]; } }
+// what each player's HUD panels show (panel -> class), so text lines can be read back
+const hudState = new Map();
 class CustomHudLayout extends Entity {
-  SetHasClassForPlayer(slot, panel, cls, on) { stats.hudCalls++; const k = panel.replace(/\d+$/, "#"); (stats.hudBy ||= {})[k] = ((stats.hudBy[k]) || 0) + 1; if (!hudIds.has(panel)) throw new Error("unknown HUD panel " + panel); }
+  SetHasClassForPlayer(slot, panel, cls, on) {
+    stats.hudCalls++; const k = panel.replace(/\d+$/, "#"); (stats.hudBy ||= {})[k] = ((stats.hudBy[k]) || 0) + 1; if (!hudIds.has(panel)) throw new Error("unknown HUD panel " + panel);
+    let m = hudState.get(slot); if (!m) hudState.set(slot, m = new Map());
+    if (on) m.set(panel, cls); else if (m.get(panel) === cls) m.delete(panel);
+  }
   SetDialogVariableStringForPlayer() { stats.hudCalls++; }
-  ResetForPlayer() {}
+  ResetForPlayer(slot) { hudState.delete(slot); }
+}
+const HUD_STRINGS = JSON.parse(fs.readFileSync(path.join(root, 'build/hud_strings.json'), 'utf8'));
+function hudLine(slot, prefix, n) {
+  const m = hudState.get(slot) || new Map();
+  const img = m.get(prefix + 'img');
+  if (img) return HUD_STRINGS[+img.slice(1)];
+  let s = '';
+  for (let i = 0; i < n; i++) { const c = m.get(prefix + i); s += !c ? '' : c === 'csp' ? ' ' : String.fromCharCode(+c.slice(1)); }
+  return s.trimEnd();
 }
 const spawnedEnts = [];
 // music: one track at a time, from the pool that fits the round's mode
@@ -192,10 +207,40 @@ hooks.OnActivate();
 let rounds = 0;
 const t0 = Date.now();
 let thinkMs = 0, maxThink = 0;
-const CHATS = { 20: "!hud", 30: "/help", 35: "!doom", 40: "/hud small", 50: "!hud", 60: "!hud center", 70: "!hud scores" };
+// 'spec': human0 spectates, asks for help, comes back (and again later); other spectators type !back now and then
+const CHATS = OPTS.includes('spec')
+  ? { 25: "!spec", 28: "/help", 38: "!back", 45: "!spec", 47: "!doom", 56: "!back" }
+  : { 20: "!hud", 30: "/help", 35: "!doom", 40: "/hud small", 50: "!hud", 60: "!hud center", 70: "!hud scores" };
+const SPEC_LOOK = [24, 26, 29, 37, 39, 46, 48, 55, 57];
+const spec = { lines: [], seen: new Map(), backs: { in: 0, stay: 0 }, problems: [], empty: [] };
+function specCheck() {
+  const { rm } = ctx.__dbg();
+  const sec = Math.round(time);
+  const show = (pe) => `status ${pe.status}${pe.arena ? ' (in ' + pe.arena.modeKey + ')' : ''} | msg "${hudLine(pe.slot, 'fdm_msg', 56)}" | above "${hudLine(pe.slot, 'fdm_spec2_', 40)}" | bottom "${hudLine(pe.slot, 'fdm_spec', 32)}"`;
+  const p0 = rm.person(0);
+  if (p0 && SPEC_LOOK.includes(sec)) spec.lines.push(`t=${sec} ${rm.modeKey} human0: ${show(p0)}`);
+  for (const pe of rm.people.values()) {
+    if (pe.bot) continue;
+    if (rm.state === 'running' && pe.status === 'none' && pe.arena) spec.problems.push(`t=${sec} ${pe.name} stuck: status none but still in an arena`);
+    if (pe.status !== 'spectating' || rm.state !== 'running') continue;
+    if (!hudLine(pe.slot, 'fdm_spec2_', 40) && !hudLine(pe.slot, 'fdm_spec', 32)) spec.empty.push(`t=${sec} ${pe.name} spec ${JSON.stringify(pe.spec)} arena ${pe.arena ? pe.arena.index : '-'}`);
+    const key = `${rm.modeKey} ${pe.arena ? 'knocked out/arena over' : 'left'}: "${hudLine(pe.slot, 'fdm_spec2_', 40).replace(/^SPECTATING .+/, 'SPECTATING <name>')}" / "${hudLine(pe.slot, 'fdm_spec', 32)}"`;
+    spec.seen.set(key, (spec.seen.get(key) || 0) + 1);
+    // spectators other than human0 try !back now and then: it must work exactly when canJoin says so
+    const ctrl = players.find((c) => c.slot === pe.slot && c.connected);
+    if (ctrl && pe.slot !== 0 && sec % 9 === pe.slot % 9) {
+      const could = rm.canJoin(pe);
+      hooks.OnPlayerChat({ player: ctrl, text: '!back' });
+      spec.backs[could ? 'in' : 'stay']++;
+      if (could && pe.status !== 'playing') spec.problems.push(`t=${sec} ${pe.name}: !back should have joined, status ${pe.status}`);
+      if (!could && pe.status !== 'spectating') spec.problems.push(`t=${sec} ${pe.name}: !back should have kept spectating, status ${pe.status}`);
+    }
+  }
+}
 while (time < SECONDS) {
   time += TICK;
   for (const [at, text] of Object.entries(CHATS)) if (Math.abs(time - +at) < TICK / 2 && players[0] && hooks.OnPlayerChat) hooks.OnPlayerChat({ player: players[0], text, team: 0 });
+  if (OPTS.includes('spec') && Math.floor(time) !== Math.floor(time - TICK)) specCheck();
   // fake human input: move, strafe, turn, shoot, switch weapons
   for (const c of players) {
     const p = c.pawn;
@@ -291,3 +336,9 @@ console.log("hud by panel", JSON.stringify(Object.entries(stats.hudBy || {}).sor
 console.log("status bar swaps", (stats.hudBy || {}).fdm_sbarbox || 0);
 console.log('log:', stats.msgs.slice(0, 5).join(' | '));
 console.log(`music: ${music.starts} tracks started (${JSON.stringify(music.byPool)}), ${music.stops} stops, problems ${music.problems.length}`, music.problems.slice(0, 5).join(' | '));
+if (OPTS.includes('spec')) {
+  console.log('human0 scenario:\n  ' + spec.lines.join('\n  '));
+  console.log('spectator lines seen (seconds):\n  ' + [...spec.seen.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n}x ${k}`).join('\n  '));
+  console.log(`blank spectator lines: ${spec.empty.length}`, spec.empty.slice(0, 6).join(' | '));
+  console.log(`!back from other spectators: ${spec.backs.in} joined, ${spec.backs.stay} kept spectating; problems ${spec.problems.length}`, spec.problems.slice(0, 6).join(' | '));
+}

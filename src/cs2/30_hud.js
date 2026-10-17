@@ -195,8 +195,8 @@ function hudPlayer(slot, p, arena, info) {
   else if (p.powers[PW_INVULN] > 4 * 32 || (p.powers[PW_INVULN] & 8)) tint = "invul";
   hudSwap(slot, "fdm_flash", tint);
   hudSwap(slot, "fdm_team", arena && arena.teamsActive && p.team >= 0 ? (p.team === 0 ? "teamred" : "teamblue") : null);
-  // message line (4 seconds, like Doom)
-  const msg = p.message && arena && arena.leveltime - p.messageTime < 4 * TICRATE ? p.message : "";
+  // message line (4 seconds, like Doom); !help puts the controls there instead
+  const msg = info && info.msg ? info.msg : p.message && arena && arena.leveltime - p.messageTime < 4 * TICRATE ? p.message : "";
   const [m1, m2] = hudWrap(msg, 316, 56);
   hudText(slot, "fdm_msg", 56, m1);
   hudText(slot, "fdm_msgb", 56, m2);
@@ -205,6 +205,7 @@ function hudPlayer(slot, p, arena, info) {
     hudText(slot, "fdm_inf2_", 32, info.line2 || "");
     hudText(slot, "fdm_ctr", 24, info.center || "");
     hudText(slot, "fdm_spec", 32, info.spec || "");
+    hudText(slot, "fdm_spec2_", 40, info.spec2 || "");
   }
 }
 
@@ -220,4 +221,5 @@ function hudLobby(slot, info) {
   hudText(slot, "fdm_inf2_", 32, info.line2 || "");
   hudText(slot, "fdm_ctr", 24, info.center || "");
   hudText(slot, "fdm_spec", 32, info.spec || "");
+  hudText(slot, "fdm_spec2_", 40, info.spec2 || "");
 }

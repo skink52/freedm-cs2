@@ -50,11 +50,11 @@ Everything else is plain props:
 - Every arena gets its own random level.
 - Each arena has a small chance (12%) of a weapon start: everyone there spawns and respawns with a pump-action shotgun, double-barrelled shotgun, minigun, missile launcher, polaric energy weapon, ripsaw or (rarely) the SKAG 1337, plus extra ammo, as well as the pistol.
 - When the first arena finishes, the others have 2 more minutes; then the leader wins.
-- Someone joining mid-round goes into an arena with room; if every arena is full (or it is a one-life round) they take a bot's place, keeping the bot's team.
+- Someone joining mid-round goes into an arena with room; if every arena is full (or it is a one-life round) they take a bot's place, keeping the bot's team. In one-life rounds that is only for newcomers: anyone who was already in (knocked out, or gone to spectate, AFK or the other team) waits for the next round.
 - Every frag is a real CS2 kill, credited to the killer, so the killfeed, scoreboard and rank plugins count it.
   - In respawn modes the CS2 kill happens about 1 second after the arena death, and CS2 respawns the player.
   - In elimination modes the kills are applied when the round ends, so eliminated players can keep watching.
-- When an arena finishes, its players watch the arenas still fighting. Mouse 1 / mouse 2 change player, E or Space changes arena.
+- When an arena finishes, its players watch the arenas still fighting (so do players knocked out of a one-life round, and anyone who types `!spec`). Mouse 1 / mouse 2 change player, E or Space changes arena. Above the status bar a spectator sees who they are watching and either "TYPE !BACK TO PLAY" or "YOU PLAY NEXT ROUND".
 - The CS2 round ends when every arena is done, or after 10 minutes.
 - Music: the levels' own soundtrack, played one track after another while a round runs. Free for all and team deathmatch rounds play longer tracks, one-life rounds play short ones. Everyone hears the same track; each player can turn it down with their own music volume (`snd_musicvolume` in the console).
 - AFK: after 20 seconds idle you get a warning. At 30 seconds you are moved to spectating and skipped next round until you press a key or type `!back`. Both notices show on that player's own screen, not in chat.

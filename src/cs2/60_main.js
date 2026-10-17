@@ -275,8 +275,10 @@ function handleRoundEvents() {
 
 // ---------------------------------------------------------------- per-tick work
 function infoFor(pe, now) {
-  const a = pe.arena || (pe.spec ? rm.arenas[pe.spec.arena] : null);
-  if (!a) return { line1: "", line2: "", center: "", spec: "" };
+  const spectating = pe.status === "spectating" && pe.spec;
+  // a spectator sees the arena they are watching (after E / jump that can be another one than their own)
+  const a = (spectating && rm.arenas[pe.spec.arena]) || pe.arena;
+  if (!a) return { line1: "", line2: "", center: "", spec: "", spec2: "" };
   const mode = MODES[a.modeKey];
   let line1 = mode.name;
   // clock: the elimination limit and/or the time left once another arena has finished
@@ -306,15 +308,24 @@ function infoFor(pe, now) {
   if (a.countdown > 0) center = String(Math.ceil(a.countdown / TICRATE));
   else if (cm && now < cm.until) center = cm.text;
   else if (a.finished && a.result) center = hudResult(a.result);
-  let spec = "";
-  if (pe.status === "spectating" && pe.spec) {
+  // bottom line (spec) and the line above it (spec2): spectators see who they watch and how to get back in
+  let spec = "", spec2 = "", msg = "";
+  if (spectating) {
     const t = a.players.get(pe.spec.target);
-    spec = t ? "SPECTATING " + hudName(t.name) : "SPECTATING";
-  } else if (pe.player && pe.player.playerstate === "dead" && a.mode.respawn) spec = "RESPAWNING...";
-  if (pe.afk) spec = "AFK - TYPE !BACK TO PLAY";
+    spec2 = t ? "SPECTATING " + hudName(t.name) : "SPECTATING";
+    if (pe.afk) spec = "AFK - TYPE !BACK TO PLAY";
+    else if (pe.csTeam !== 2 && pe.csTeam !== 3) spec = "JOIN T OR CT TO PLAY";
+    else spec = rm.canJoin(pe) ? "TYPE !BACK TO PLAY" : "YOU PLAY NEXT ROUND";
+  } else if (pe.afk) spec = "AFK - TYPE !BACK TO PLAY";
+  else if (pe.player && pe.player.playerstate === "dead" && a.mode.respawn) spec = "RESPAWNING...";
   else if (a.countdown > 0 && a.loadout) spec = LOADOUTS[a.loadout].name;
-  if (!spec && pe.helpUntil > now) spec = "CHAT: !SPEC  !AFK  !BACK  !HUD";
-  return { line1, line2, center, spec, sbar: pe.hudPos };
+  // !help: controls on the message line and chat commands at the bottom, over whatever was there
+  if (pe.helpUntil > now) {
+    msg = "R NEXT  F PREV  E USE  SHIFT WALK";
+    spec = "CHAT: !SPEC  !AFK  !BACK  !HUD";
+    if (spectating) spec2 = "MOUSE1/2 SWITCH PLAYER" + (rm.arenas.length > 1 ? "  E NEXT ARENA" : "");
+  }
+  return { line1, line2, center, spec, spec2, msg, sbar: pe.hudPos };
 }
 
 let lobbyNext = 0, lobbyCycle = 0, lobbyWaiting = 0;   // lobbyCycle: which arena the lobby status shows (changes every 3 s)
@@ -532,7 +543,14 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
   } else if (t === "!afk") {
     if (pe) { pe.afk = true; if (pe.status === "playing") { const a = pe.arena; rm.leaveArena(pe, "afk"); rm.spectate(pe, a); } }
   } else if (t === "!back") {
-    if (pe) { pe.afk = false; rm.markActive(slot); if (pe.status === "spectating" && phase === "running") { pe.status = "none"; rm.lateJoin(pe); } }
+    // back into a game only when there is a place now; someone knocked out of a one-life round waits for the next
+    if (pe) {
+      pe.afk = false; rm.markActive(slot);
+      if (pe.status === "spectating" && phase === "running" && rm.canJoin(pe)) {
+        pe.status = "none";
+        if (rm.lateJoin(pe) && pe.player && pe.player.mo) faceView(slot, pe.player.mo.angle);
+      }
+    }
   } else if (t === "!hud scores" || t === "!hud scoreboard") {
     // per player: hide the Doom HUD while the scoreboard is open
     if (pe) {
@@ -549,8 +567,7 @@ Instance.OnPlayerChat(({ player, text }) => guard("chat", () => {
       if (pe.player) { pe.player.message = "STATUS BAR: " + ({ centre: "NORMAL", classic: "CLASSIC", small: "SMALL" })[pe.hudPos] + "  (!HUD TO CHANGE)"; pe.player.messageTime = pe.arena ? pe.arena.leveltime : 0; }
     }
   } else if (["!help", "!controls", "!hm", "!doom", "!fdm"].includes(t)) {   // !doom / !fdm: old names, still work
-    // shown only on the HUD of whoever typed it (CS2 scripts can't send a private chat line)
+    // shown only on the HUD of whoever typed it (CS2 scripts can't send a private chat line); see infoFor / lobbyInfo
     if (pe) pe.helpUntil = Instance.GetGameTime() + CONFIG.HELP_SECONDS;
-    if (pe && pe.player) { pe.player.message = "R NEXT  F PREV  E USE  SHIFT WALK"; pe.player.messageTime = (pe.arena ? pe.arena.leveltime : 0) + (CONFIG.HELP_SECONDS - 4) * TICRATE; }
   }
 }));

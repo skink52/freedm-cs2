@@ -5,6 +5,8 @@
 - Music: the levels' own soundtrack plays during rounds, with longer tracks in free for all and team deathmatch and short ones in one-life rounds. Turn it down with your music volume.
 - Fixed: you could see through walls by running up against them, including raised ledges, pillars and closed doors.
 - Kill messages at the top no longer get cut off: long ones wrap onto a second line. Player names on the game HUD are shortened to 12 characters (chat and the scoreboard still show full names).
+- Spectating: the screen shows who you're watching and "TYPE !BACK TO PLAY", and !help now works while spectating (it also shows how to switch player).
+- One-life rounds (team elimination, last man standing): once you're out, whether killed or gone to spectate, you wait for the next round instead of taking over a bot. Fixed: typing !back after being knocked out could leave you stuck.
 - No more money for kills (nothing can be bought anyway).
 - The lobby bhop course is gone: it was there for late joiners, who now take a bot's place instead of waiting.
 - !help shows the controls (!doom still works).

@@ -254,17 +254,31 @@ class RoundManager {
         // leaving an elimination arena counts as eliminated
         a.events.push({ type: 'eliminated', victim: p, why });
       }
+      // one life per round: whoever leaves a one-life arena can't take a bot's place until the next round
+      if (a.mode && !a.mode.respawn) pe.outRound = this.roundNumber;
       a.removePlayer(pe.slot);
       this.events.push({ type: 'leave', person: pe, arena: a, why });
     }
     pe.arena = null; pe.player = null; pe.status = 'none'; pe.spec = null;
   }
 
+  // arenas someone can walk into mid-round: respawn rounds with room (team arenas only for T/CT players)
+  joinCandidates(pe) {
+    return this.arenas.filter((a) => !a.finished && a.mode.respawn && a.players.size < this.cfg.arenaMax &&
+      (!a.teamsActive || pe.csTeam === 2 || pe.csTeam === 3));
+  }
+
+  // would lateJoin put this person into a game right now? (not while they are still in an arena: knocked out of a
+  // one-life round, or their arena is over)
+  canJoin(pe) {
+    if (this.state !== 'running' || pe.arena) return false;
+    return this.joinCandidates(pe).length > 0 || (!pe.bot && this.cfg.replaceBots !== false && !!this.botToReplace(pe));
+  }
+
   lateJoin(pe) {
     if (this.state !== 'running') return false;
     if (pe.arena) return true;
-    const cands = this.arenas.filter((a) => !a.finished && a.mode.respawn && a.players.size < this.cfg.arenaMax &&
-      (!a.teamsActive || pe.csTeam === 2 || pe.csTeam === 3));
+    const cands = this.joinCandidates(pe);
     if (cands.length) {
       cands.sort((a, b) => a.players.size - b.players.size);
       this.joinArena(pe, cands[0], false);
@@ -276,12 +290,15 @@ class RoundManager {
     return false;
   }
 
-  replaceBot(pe) {
-    if (pe.csTeam !== 2 && pe.csTeam !== 3) return false;
+  // the bot whose place this human would take, or null
+  botToReplace(pe) {
+    if (pe.csTeam !== 2 && pe.csTeam !== 3) return null;
     const team = pe.csTeam === 3 ? 1 : 0;
+    const out = pe.outRound === this.roundNumber;
     let best = null, bestScore = Infinity;
     for (const a of this.arenas) {
       if (a.finished || a.countdown > 0) continue;
+      if (!a.mode.respawn && out) continue;                          // already had their one life this round
       for (const p of a.players.values()) {
         const pb = p.person;
         if (!pb || !pb.bot || p.spectating) continue;
@@ -292,6 +309,11 @@ class RoundManager {
         if (score < bestScore) { bestScore = score; best = { a, p, pb }; }
       }
     }
+    return best;
+  }
+
+  replaceBot(pe) {
+    const best = this.botToReplace(pe);
     if (!best) return false;
     const { a, p, pb } = best;
     if (a.mode.respawn) {

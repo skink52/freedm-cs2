@@ -37,6 +37,7 @@ Run `map mg_hellmatch` with `bot_quota 5`, or invite a friend. Start the game no
 11. **Lobby.** The bhop area is gone and the lobby is a plain room again (east wall at the original spot, no holes).
 12. **Kill messages.** A long kill message at the top left (for example "...WAS MOWED DOWN BY ...'S CHAINGUN.") wraps onto a second line instead of being cut off. Names longer than 12 characters are shortened on the game HUD only; chat and the scoreboard show the full name.
 13. **Walls up close** (MAP28 especially). Press against walls, ledges too high to step onto, pillars and closed doors while looking around. You should keep seeing wall, never the sky or the room behind it.
+14. **Spectating.** In a free for all or team deathmatch round, type `!spec`. Above the status bar you should see "SPECTATING <name>" and under it "TYPE !BACK TO PLAY" (the two lines must not overlap). Type `!help`: for 8 seconds the keys and chat commands replace those lines, and the controls show top left. Type `!back`: you're back in. In team elimination or last man standing the bottom line says "YOU PLAY NEXT ROUND" instead and `!back` keeps you watching.
 
 ## D. Server (CounterStrikeSharp)
 Use `claude/freedm_cs2_server_issues.md` in the project. The biggest risks are AFK managers, no-respawn plugins, spawn protection and teamkill punishment.

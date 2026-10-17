@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 10:15 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 10:50 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -208,6 +208,30 @@ rebuild in Hammer (the level models recompile) and fully reload.
   whose copy would cross another line. props.json changed only in tri counts; levels.json and the vmap unchanged.
   NOT YET TESTED IN CS2.
 
+## Update 17 Oct 10:50 - spectator lines, !help while spectating, one life per round
+Zach: /help and /doom did nothing while spectating; wanted "type !back to play" on the spectator line and !help to
+replace the "SPECTATING <name>" line. Written and verified (sha1): maps/scripts/freedm.js, panorama freedm.xml +
+freedm.css, TESTING_HELLMATCH.md, README_HELLMATCH.md (content and game folders). Map and models unchanged.
+- Cause: the help text only went on the bottom line when nothing else was there, so "SPECTATING <name>" always won;
+  the controls went on pe.player's message line, and spectators have no player of their own on screen.
+- New HUD row fdm_spec2_ (40 slots, .SpecLine.SpecLine2 at y 149, just above the bottom line fdm_spec at y 158).
+  Spectators: top "SPECTATING <name>", bottom "TYPE !BACK TO PLAY" when !back would put them in right now
+  (RoundManager.canJoin), else "YOU PLAY NEXT ROUND"; "AFK - TYPE !BACK TO PLAY" and "JOIN T OR CT TO PLAY" as before.
+  !help (8 s, everyone): controls on the message line via info.msg (replaces the old messageTime trick), bottom line
+  "CHAT: !SPEC  !AFK  !BACK  !HUD" over whatever was there; spectators also get "MOUSE1/2 SWITCH PLAYER  E NEXT ARENA"
+  (the arena part only with 2+ arenas) on the top row. .MsgLine2 is now .MsgLine.MsgLine2 (wins on specificity).
+- Bug fixed: !back from someone knocked out of a one-life round (or whose arena was over) set status 'none' while they
+  were still in the arena, and lateJoin returned early: stuck on the lobby text until the round ended. !back now only
+  acts when canJoin is true, and calls faceView after joining.
+- One life per round (core): leaving a one-life arena for any reason (!spec, AFK, team change, knocked out then
+  leaving) sets pe.outRound; botToReplace skips one-life arenas for them, so !spec then !back can no longer swap a
+  dying marine for a bot's. Newcomers still take a bot's place. README says so.
+- infoFor now takes a spectator's arena from pe.spec (the arena they watch), so after E / jump the top-right lines and
+  the name match the arena on screen (it used their own arena before and showed just "SPECTATING").
+- Mock: test/mock_cs2.mjs reads HUD text back (hudLine) and has a `spec` option (human0 !spec, /help, !back, !spec,
+  !doom, !back; other spectators type !back and it must join exactly when canJoin says so). Runs: spec, spec+churn,
+  spec+churn+elimonly - 0 problems, no one stuck. NOT YET TESTED IN CS2 (check the two rows don't overlap).
+
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
    Frags during CS2 warmup are deliberately not sent (console warning says so).
@@ -227,7 +251,8 @@ rebuild in Hammer (the level models recompile) and fully reload.
   Scripts can't send private chat and can't hide a player's own chat line.
 - Panorama: moving a panel by changing horizontal-align through a class doesn't re-place it (transform/size changes
   do work); keyframe names must be quoted; the root HUD panel may not have an id; HUD text lines are fixed rows of character
-  panels (32 per line; the message line 2 x 56).
+  panels (32 per line; the message line 2 x 56; spectator top row 40). Line prefixes must not end in a digit
+  (fdm_spec2 + "0" would clash with fdm_spec + "20"), hence fdm_inf1_, fdm_spec2_.
 - Alpha-tested textures must be power-of-two; CS2 draws both faces of model polygons.
 - Bots need a func_nav_markup WALKABLESEED volume in the lobby (present).
 

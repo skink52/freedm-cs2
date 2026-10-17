@@ -200,11 +200,12 @@ def line(prefix, n, cls):
     return P(None, 'Line ' + cls, [P(prefix + 'img', 'TImg')] + [P(prefix + str(i), 'Ch') for i in range(n)])
 
 rule('.MsgLine', margin_left=px(1, SX), margin_top=px(1, SY))
-rule('.MsgLine2', margin_top=px(10, SY))          # second line for long messages (the script wraps them)
+rule('.MsgLine.MsgLine2', margin_top=px(10, SY))  # second line for long messages (the script wraps them)
 rule('.CtrLine', horizontal_align='center', margin_top=px(60, SY))
 rule('.InfLine1', horizontal_align='right', margin_right=px(2, SX), margin_top=px(10, SY))
 rule('.InfLine2', horizontal_align='right', margin_right=px(2, SX), margin_top=px(19, SY))
 rule('.SpecLine', horizontal_align='center', margin_top=px(158, SY))
+rule('.SpecLine.SpecLine2', margin_top=px(149, SY))  # the line above: who a spectator watches, or the !help keys
 rule('.Team', width=px(320, SX), height=px(2, SY))
 rule('.Team.teamred', background_color='#e61e1ecc')
 rule('.Team.teamblue', background_color='#3c5affcc')
@@ -217,6 +218,7 @@ screen = P('fdm_screen', 'Screen', [
     line('fdm_inf1_', 32, 'InfLine1'),
     line('fdm_inf2_', 32, 'InfLine2'),
     line('fdm_spec', 32, 'SpecLine'),
+    line('fdm_spec2_', 40, 'SpecLine SpecLine2'),
 ])
 # crosshair: a small cross at the true screen centre (where shots go), drawn like the Doom source ports do
 xh = np.zeros((7, 7, 4), np.uint8)
