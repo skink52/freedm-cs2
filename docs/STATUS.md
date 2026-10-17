@@ -274,7 +274,11 @@ only after waiting. Written and verified (sha1): maps/scripts/freedm.js, TESTING
   193 s, 1457 of 5300 screen checks wrong; new build: 0 and 0 (also with elimonly, spec, hudcheck).
 - Music console line "[sndoperators] operator error: event fdm_music.dm21: CSosOperatorConvar" (sometimes, spams):
   our events match Valve's documented csgo_music example exactly (type, volume, volume_convar "snd_musicvolume",
-  vsnd_files). Not changed yet; asked Zach when it shows (someone joining? track change?).
+  vsnd_files). 20:50 Zach's console dump: each line pair is followed by "Unable to acquire convar value:
+  snd_musicvolume_rush / _casual / _armsrace / _deathmatch" in a loop while a track plays. CS2's built-in csgo_music
+  stack looks up old per-mode CS:GO music volume convars that CS2 doesn't have. Harmless (music plays, follows
+  snd_musicvolume); left as is. The only way to silence it is a non-music sound type, which would ignore the music
+  volume slider (a shared point_soundevent can't be turned down per player).
 
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
