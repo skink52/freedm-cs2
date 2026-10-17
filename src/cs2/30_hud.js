@@ -5,6 +5,10 @@
 let hudEnt;
 let hudBudget = Infinity;      // reset every think; when it runs out, the rest of the HUD changes go out next tick
 const hudCache = new Map();   // slot -> Map(panelId -> class)
+const hudLines = new Map();   // slot -> Map(line or number prefix -> what it last showed in full), so unchanged ones are skipped
+const HUD_LINE_CHECK = false; // test only: still compare every skipped line panel by panel
+let hudCheckMiss = 0;
+let hudGen = 0;               // goes up whenever the HUD entity is found again (everything gets resent)
 
 function hud() {
   if (live(hudEnt)) return hudEnt;
@@ -13,7 +17,23 @@ function hud() {
   // a (re)found HUD entity doesn't know what we sent before: clear it and resend everything
   for (const slot of hudCache.keys()) { try { hudEnt.ResetForPlayer(slot); } catch (err) { /* ignore */ } }
   hudCache.clear();
+  hudLines.clear();
+  hudGen++;
   return hudEnt;
+}
+
+// true when this line/number already shows `value` (then there is nothing to send)
+function hudSame(slot, prefix, value) {
+  const lines = hudLines.get(slot);
+  return !!lines && lines.get(prefix) === value;
+}
+
+// remember what a line/number shows, but only if every change for it went out (the budget can cut a line short,
+// and a HUD entity found again halfway through means the start of the line was wiped)
+function hudDrawn(slot, prefix, value, gen) {
+  let lines = hudLines.get(slot);
+  if (!lines) { lines = new Map(); hudLines.set(slot, lines); }
+  if (hudBudget > 0 && gen === hudGen && hudCache.has(slot)) lines.set(prefix, value); else lines.delete(prefix);
 }
 
 function hudSwap(slot, panel, cls) {
@@ -32,6 +52,7 @@ function hudSwap(slot, panel, cls) {
 
 function hudReset(slot) {
   hudCache.delete(slot);
+  hudLines.delete(slot);
   const h = hud();
   if (h) { try { h.ResetForPlayer(slot); } catch (err) { /* ignore */ } }
 }
@@ -64,8 +85,12 @@ function hudWrap(text, maxPx, maxChars) {
 // Doom font text: one panel per character, classes c<ascii code>
 function hudText(slot, prefix, len, text) {
   text = String(text || "").toUpperCase();
+  const same = hudSame(slot, prefix, text);
+  if (same && !HUD_LINE_CHECK) return;
+  const full = text, gen = hudGen;
   const pre = HUD_STRING_INDEX.get(text);
-  hudSwap(slot, prefix + "img", pre === undefined ? null : "t" + pre);
+  const set = (panel, cls) => { if (!same) hudSwap(slot, panel, cls); else { const c = hudCache.get(slot); if (((c && c.get(panel)) || null) !== cls) hudCheckMiss++; } };
+  set(prefix + "img", pre === undefined ? null : "t" + pre);
   if (pre !== undefined) text = "";
   for (let i = 0; i < len; i++) {
     const ch = i < text.length ? text.charCodeAt(i) : 0;
@@ -73,12 +98,18 @@ function hudText(slot, prefix, len, text) {
     if (ch === 32) cls = "csp";
     else if (ch >= 33 && ch <= 95) cls = "c" + ch;
     else if (ch) cls = "csp";
-    hudSwap(slot, prefix + i, cls);
+    set(prefix + i, cls);
   }
+  if (!same) hudDrawn(slot, prefix, full, gen);
 }
 
 function hudNumber(slot, prefix, digits, value, kind, showZero) {
   // right-aligned digits; kind: "b" big red, "y" small yellow, "g" small grey
+  const key = kind + (value === null ? "-" : Math.floor(value));
+  const same = hudSame(slot, prefix, key);
+  if (same && !HUD_LINE_CHECK) return;
+  const gen = hudGen;
+  const set = (panel, cls) => { if (!same) hudSwap(slot, panel, cls); else { const c = hudCache.get(slot); if (((c && c.get(panel)) || null) !== cls) hudCheckMiss++; } };
   let v = Math.max(-99, Math.min(Math.pow(10, digits) - 1, Math.floor(value)));
   const neg = v < 0; if (neg) v = -v;
   const s = String(v);
@@ -88,8 +119,9 @@ function hudNumber(slot, prefix, digits, value, kind, showZero) {
     if (di >= 0) cls = kind + "n" + s[di];
     else if (neg && di === -1) cls = kind + "nm";
     if (value === null) cls = null;
-    hudSwap(slot, prefix + i, cls);
+    set(prefix + i, cls);
   }
+  if (!same) hudDrawn(slot, prefix, key, gen);
 }
 
 // ---------------------------------------------------------------- face (ST_updateFaceWidget)

@@ -197,7 +197,9 @@ const api = { Instance, CSInputs, CustomCameraMode, CSMoveType, CSRoundEndReason
 let src = fs.readFileSync(path.join(root, 'out/addon/maps/scripts/freedm.js'), 'utf8');
 src = src.replace(/^import \{[^}]+\} from "cs_script\/point_script";/m, 'const { Instance, CSInputs, CSPlayerPawn, CSPlayerController, BaseModelEntity, PointTemplate, CustomHudLayout, CSDamageFlags, CSDamageTypes, CustomCameraMode, CSMoveType, CSRoundEndReason, Entity } = __api;');
 if (OPTS.includes('elimonly')) src = src.replace(/MODE_WEIGHTS: \{[^}]*\}/, 'MODE_WEIGHTS: { ffa: 0, tdm: 0, elim: 100, lms: 0 }');
-src += '\nglobalThis.__dbg = () => ({ rm, views, parked });\n';
+if (OPTS.includes('hudcheck')) src = src.replace('const HUD_LINE_CHECK = false;', 'const HUD_LINE_CHECK = true;');
+if (OPTS.includes('nolinecache')) src = src.replace(/function hudSame\(slot, prefix, value\) \{/, 'function hudSame(slot, prefix, value) { return false;');
+src += '\nglobalThis.__dbg = () => ({ rm, views, parked, hudCheckMiss });\n';
 const ctx = vm.createContext({ __api: api, console, Math, Date, JSON, Map, Set, Array, Object, String, Number, Error, Infinity, NaN });
 vm.runInContext(src, ctx, { filename: 'freedm.js' });
 
@@ -207,6 +209,7 @@ hooks.OnActivate();
 let rounds = 0;
 const t0 = Date.now();
 let thinkMs = 0, maxThink = 0;
+const perf = { ms: [], mv: [], hud: [], snd: 0, sp: 0 };
 // 'spec': human0 spectates, asks for help, comes back (and again later); other spectators type !back now and then
 const CHATS = OPTS.includes('spec')
   ? { 25: "!spec", 28: "/help", 38: "!back", 45: "!spec", 47: "!doom", 56: "!back" }
@@ -275,6 +278,11 @@ while (time < SECONDS) {
     const s = performance.now();
     try { thinkFn(); } catch (err) { stats.errors.push('THROW ' + err.stack); break; }
     const d = performance.now() - s; thinkMs += d; maxThink = Math.max(maxThink, d);
+    if (OPTS.includes('perf') && time > 10) {
+      const now = { mv: stats.moves + stats.teleports, hud: stats.hudCalls, snd: stats.sounds, sp: stats.spawned };
+      const pv = perf.prev || now; perf.prev = now;
+      perf.ms.push(d); perf.mv.push(now.mv - pv.mv); perf.hud.push(now.hud - pv.hud); perf.snd += now.snd - pv.snd; perf.sp += now.sp - pv.sp;
+    }
     if (d > 16) (stats.slow ||= []).push(`${time.toFixed(1)}s:${d.toFixed(0)}ms`);
     if (OPTS.includes('prof')) { const now = { hud: stats.hudCalls, tp: stats.teleports + stats.moves, sp: stats.spawned, mdl: stats.setModel }; const pv = stats.prev || now; if (d > 8) console.log(`t=${time.toFixed(2)} ${d.toFixed(1)}ms hud+${now.hud - pv.hud} moves+${now.tp - pv.tp} spawned+${now.sp - pv.sp} setModel+${now.mdl - pv.mdl}`); stats.prev = now; }
   }
@@ -341,4 +349,12 @@ if (OPTS.includes('spec')) {
   console.log('spectator lines seen (seconds):\n  ' + [...spec.seen.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n}x ${k}`).join('\n  '));
   console.log(`blank spectator lines: ${spec.empty.length}`, spec.empty.slice(0, 6).join(' | '));
   console.log(`!back from other spectators: ${spec.backs.in} joined, ${spec.backs.stay} kept spectating; problems ${spec.problems.length}`, spec.problems.slice(0, 6).join(' | '));
+}
+if (OPTS.includes('hudcheck')) console.log(`hud line cache check: ${ctx.__dbg().hudCheckMiss} skipped panels that differed`);
+if (OPTS.includes('perf') && perf.ms.length) {
+  const q = (a, f) => { const b = a.slice().sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(f * b.length))]; };
+  const avg = (a) => a.reduce((t, x) => t + x, 0) / a.length;
+  const n = perf.ms.length;
+  console.log(`perf over ${n} server ticks: script ms avg ${avg(perf.ms).toFixed(2)} p50 ${q(perf.ms, .5).toFixed(2)} p95 ${q(perf.ms, .95).toFixed(2)} p99 ${q(perf.ms, .99).toFixed(2)} max ${Math.max(...perf.ms).toFixed(1)}`);
+  console.log(`  entity moves per tick avg ${avg(perf.mv).toFixed(0)} p99 ${q(perf.mv, .99)} max ${Math.max(...perf.mv)}; HUD changes per tick avg ${avg(perf.hud).toFixed(0)} p99 ${q(perf.hud, .99)}; sounds/s ${(perf.snd / (n / 64)).toFixed(0)}; new props/s ${(perf.sp / (n / 64)).toFixed(1)}`);
 }

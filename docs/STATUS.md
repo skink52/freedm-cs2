@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 10:50 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (17 Oct 2026, 17:35 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -231,6 +231,27 @@ freedm.css, TESTING_HELLMATCH.md, README_HELLMATCH.md (content and game folders)
 - Mock: test/mock_cs2.mjs reads HUD text back (hudLine) and has a `spec` option (human0 !spec, /help, !back, !spec,
   !doom, !back; other spectators type !back and it must join exactly when canJoin says so). Runs: spec, spec+churn,
   spec+churn+elimonly - 0 problems, no one stuck. NOT YET TESTED IN CS2 (check the two rows don't overlap).
+
+## Update 17 Oct 17:35 - "will it be too laggy on a server?": HUD cost halved, timing line in the console
+Written and verified (sha1): maps/scripts/freedm.js only. No visible change.
+- Profile (node --cpu-prof, mock 32 humans + 32 bots): hudPlayer 54% of script time (hudText 34%, hudSwap 20%,
+  hudNumber 11%) - every tic re-checked ~270 text panels per player that had not changed. Doom sim 22%, prop
+  updates 15%.
+- Fix (30_hud.js): hudLines remembers what each text line / number last showed in full; unchanged ones are skipped
+  (hudSame/hudDrawn). Only recorded when every change went out (HUD budget not exhausted, HUD entity not re-found
+  halfway: hudGen). Cleared with hudCache (hudReset, hud() re-find). Mock option `hudcheck` still compares every
+  skipped line panel by panel: 0 differences (default, churn, spec, spec+churn+elimonly, afk, round restarts).
+  Mock option `nolinecache` = old behaviour, `perf` = per-tick stats.
+- Script time per server tick (mock, Node, before -> after): 16 players avg 1.38 -> 0.79 ms (p99 4.3 -> 2.5);
+  32 players 2.95 -> 1.60 (p99 8.7 -> 4.9); 64 players 6.2 -> 2.9 (p99 17.6 -> 8.2, ticks over 16 ms in 7 min
+  551 -> 9, all at round start: arena build spikes 20-30 ms). Not measured: CS2's own cost of ~145 prop moves per
+  tick at 64 players (~90 sounds/s, ~90 HUD class changes per tick) and networking them to every client.
+- Console (60_main.js think): once a minute during a round "[hellmatch] script time: avg X ms, max Y ms per server
+  tick (N players, A arenas)" (Date.now, 1 ms steps; skipped if Date is missing).
+- Lag on a server, for the record: the camera is CONTROLLED_POSITION while alive, so mouse look stays client-side
+  (instant); movement and shots are simulated on the server, so they arrive one round trip late (ping + up to one
+  35 Hz Doom tic + interpolation). No lag compensation (shots use the server's current positions): lead targets by
+  about your ping. A map script can't do client-side prediction.
 
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).

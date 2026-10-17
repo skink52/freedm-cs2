@@ -457,7 +457,13 @@ function frame(dt) {
   }
 }
 
+// once a minute during a round the console shows how long the script takes per server tick (a 64-tick server has
+// 15.6 ms per tick for everything)
+const scriptTime = { n: 0, ms: 0, max: 0, next: 0 };
+const clockMs = typeof Date !== "undefined" && typeof Date.now === "function" ? () => Date.now() : null;
+
 function think() {
+  const t0 = clockMs ? clockMs() : 0;
   hudBudget = CONFIG.HUD_BUDGET;
   flushSays();
   const now = Instance.GetGameTime();
@@ -466,6 +472,15 @@ function think() {
   if (!(dt > 0) || dt > 0.25) dt = 1 / 64;
   if (ready) guard("frame", () => frame(dt));
   if (ready) guard("music", () => musicTick(now));
+  if (clockMs && phase === "running") {
+    const d = clockMs() - t0;
+    scriptTime.n++; scriptTime.ms += d; if (d > scriptTime.max) scriptTime.max = d;
+    if (!scriptTime.next) scriptTime.next = now + 60;
+    else if (now >= scriptTime.next) {
+      log(`script time: avg ${(scriptTime.ms / scriptTime.n).toFixed(1)} ms, max ${scriptTime.max} ms per server tick (${rm.people.size} players, ${rm.arenas.length} arenas)`);
+      scriptTime.n = 0; scriptTime.ms = 0; scriptTime.max = 0; scriptTime.next = now + 60;
+    }
+  }
   Instance.SetNextThink(now);
 }
 
