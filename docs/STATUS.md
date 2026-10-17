@@ -1,4 +1,4 @@
-# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 03:20 Adelaide)
+# Hellmatch CS2 (formerly FreeDM Arena) — current status and handover (18 Oct 2026, 08:25 Adelaide)
 
 Repo: https://github.com/skink52/hellmatch-cs2 (renamed from freedm-cs2 by Zach 17 Oct; source only). Build: `FREEDOOM_DIR=/path/to/freedoom sh tools/build_all.sh`
 rebuilds the addon into out/addon (FREEDOOM_DIR not needed when the freedoom checkout is inside the repo).
@@ -358,6 +358,44 @@ props, 94 sound events, 14 music events), then `disconnect` + run the map.
 - Open: CS2 cost of ~40 monsters + shots per arena (props, sounds) unknown; Boss Battle balance tuned on bots only;
   monster kills can't be CS2 kills; `MUSIC_OPENER` "every" by default (Zach's call; "first" = once per map load).
 
+
+## Update 18 Oct 08:25 - monster audit (Zach 07:21: "check for the issues we've met before and anomalous AI; PvE rounds on large maps")
+Commit 31867f4 (pushed). Delivered + sha1-verified: maps/scripts/freedm.js, README/TESTING (content), README (game). Map and
+models unchanged, so no Hammer rebuild for this one (the 23:10 delivery still needs its full build). NOT YET RUN IN CS2.
+Method: test/audit_monsters.cjs runs Boss Battle or DM+monsters on every level with bots and counts, once a second:
+monsters outside the outline, inside a wall (blockline at own position), on a tall ledge, floating, stuck (no movement
+for 10 s with a far target), idle (asleep with players alive), bots stuck 5 s+, spawn failures, relocations, slow tics,
+HUD lines over their slots. Plus the mock (bossonly/noboss+monsters with churn, spec, hudcheck, resetfirst+hudwipe, afk),
+tsc, and an independent code review (10 findings, all applied).
+Found and fixed:
+- Spawn spots inside a tall step: fitSpot/checkPositionProbe passed a spot whose radius overlapped a 128-high ledge;
+  the monster then stood at ledge height inside the low room and could never move (MAP07 etc). Now a step > MAXSTEP
+  within the radius rejects the spot (players' spawn spots use the same check; was rare for them).
+- Co-op telefrag: sameTeamNoFF blocked 10000-damage telefrags in Boss Battle, so a bot taking a teleporter onto a
+  teammate at the destination overlapped it; overlapping things can never separate (each blocks the other's moves) -
+  3 bots stuck 45 s at one spot (MAP11). Telefrags now bypass team rules. Monsters don't teleport onto things.
+- Monsters in walls after a teleporter: a 30-radius demon landing on MAP01's destination (16 units from a wall)
+  overlapped it (Doom does this too). Monsters now step to the nearest clear spot after teleporting.
+- Lost souls spawned through walls into the void by the summoner (Doom quirk): skull spawn needs a clear line and an
+  inside point; any monster outside the outline is removed (rescueOutside, director.onLost keeps counters right).
+- Wave stalls: monsters that lost sight of everyone went back to sleep; monsters jittered for minutes against geometry
+  they can't path round; ledge snipers nobody can reach/aim at. Director.unstick (every 5 s, boss mode): asleep 5 s ->
+  wake with the nearest player as target; no headway towards the nearest player (64 units) for 20 s and not fighting
+  on the same floor -> back through a teleporter near the players, on their floor level (flyers exempt from the floor
+  rule). Stuck monster-seconds over 32 maps 1913 -> ~100; rounds reach the boss everywhere.
+- ML_BLOCKMONSTERS lines now block monsters (and the spot probe knows it). Monsters open all door kinds (keys don't
+  exist; a monster behind a locked door would stall a wave).
+- Boss Battle entry is once per round (leaving via !spec/AFK/team change and rejoining gave fresh lives and 0 frags).
+- Boss Battle picks levels from the bigger half by area (16 levels: MAP24 32M .. MAP22 4.8M), the biggest quarter
+  twice as often; CONFIG.BOSS_MAP_BLACKLIST. Verified over 400 rounds: 16 distinct, all >= 4.8M.
+- Boss wave softened (health scale 0.35+0.1n, escort 2+n/3), bossDown fires on the kill (escort queue dropped), arenas'
+  waves offset by a second so four arenas don't burst on one tick, aliveNow cached (HUD read it per player per tick),
+  ADD_SCORE never docks a monster victim, csKill log with killer null fixed, raised boss corpses lose .boss, idle
+  check keys on A_Look (STND/STND2 alternate).
+Bot-only balance after fixes, 8 bots on the 16 large levels: ~13 victory / 1-2 overrun / 1-2 time-up per pass; 4 bots
+lose more often (5 of 6 overrun) - small groups may need lives 4 or a smaller budget; judge after a human game.
+Known/accepted: Doom's chase is greedy, so some jitter remains (relocation covers it); mock "blank spectator lines" at
+t=25/45 are the second the !spec was typed (pre-existing, also in the previous script); monster kills still not CS2 kills.
 
 ## Open issues
 1. Confirm in CS2 that scoreboard kills keep counting when people join mid-round (fixed in the sim, 15:10 build).
